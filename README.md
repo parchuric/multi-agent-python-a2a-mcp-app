@@ -43,14 +43,14 @@ Domain-specific APIs: Weather, News, Sports, and Stocks data sources
 
 ## Flow of Information:
 
-1. User sends a query through the web interface \
-2. Express API receives the query and initializes the agent graph \
-3. Analyzer node categorizes the query by topic \
-4. Router directs the query to the appropriate specialized agent \
-5. Agent processes the query, potentially calling external APIs \
-6. Evaluator determines if the response is complete or needs input from other agents \
-7. If more information is needed, query is routed to additional agents \
-8. Synthesizer combines information from multiple agents when necessary \
+1. User sends a query through the web interface 
+2. Express API receives the query and initializes the agent graph 
+3. Analyzer node categorizes the query by topic 
+4. Router directs the query to the appropriate specialized agent 
+5. Agent processes the query, potentially calling external APIs 
+6. Evaluator determines if the response is complete or needs input from other agents 
+7. If more information is needed, query is routed to additional agents 
+8. Synthesizer combines information from multiple agents when necessary 
 9. Final response is returned to the API and displayed to the user 
 
 This architecture leverages LangGraph's directed graph structure to create a workflow where specialized agents can collaborate on complex queries, with state being maintained throughout the entire process. 
