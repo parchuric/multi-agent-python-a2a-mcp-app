@@ -1,0 +1,32 @@
+{
+  "name": "multi-agent-app",
+  "version": "1.0.0",
+  "description": "Multi-agent application using LangGraph and Azure OpenAI",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@langchain/langgraph": "^0.0.6",
+    "axios": "^1.9.0",
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "js-yaml": "^4.1.0",
+    "langchain": "^0.1.37",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/js-yaml": "^4.0.5",
+    "@types/node": "^20.17.32",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.2.2"
+  },
+  "author": "Your Name",
+  "license": "MIT"
+}
