@@ -51,9 +51,9 @@ Agent processes the query, potentially calling external APIs \
 Evaluator determines if the response is complete or needs input from other agents \
 If more information is needed, query is routed to additional agents \
 Synthesizer combines information from multiple agents when necessary \
-Final response is returned to the API and displayed to the user \
+Final response is returned to the API and displayed to the user 
 
-This architecture leverages LangGraph's directed graph structure to create a workflow where specialized agents can collaborate on complex queries, with state being maintained throughout the entire process. \
+This architecture leverages LangGraph's directed graph structure to create a workflow where specialized agents can collaborate on complex queries, with state being maintained throughout the entire process. 
 
 1. **Query Analysis**: Determines the query's primary topic
 2. **Agent Routing**: Directs the query to the appropriate specialized agent
