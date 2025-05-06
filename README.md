@@ -18,15 +18,15 @@ Web Interface: The frontend that collects user queries and displays responses
 Express API: Handles HTTP requests, communicates with the LangGraph agent system
 
 3. Agent Graph
-Analyzer Node: Determines the topic category of the user query
-Router Node: Directs the query to the appropriate specialized agent
-Agent Nodes:
-Weather Agent: Handles weather-related queries
-Sports Agent: Processes sports-related information
-News Agent: Provides current events information
-Stocks Agent: Delivers financial market data
-Health Agent: Answers health and wellness questions
-Evaluator Node: Determines if additional information is needed from other agents
+Analyzer Node: Determines the topic category of the user query\
+Router Node: Directs the query to the appropriate specialized agent\
+Agent Nodes:\
+Weather Agent: Handles weather-related queries\
+Sports Agent: Processes sports-related information\
+News Agent: Provides current events information\
+Stocks Agent: Delivers financial market data\
+Health Agent: Answers health and wellness questions\
+Evaluator Node: Determines if additional information is needed from other agents\
 Synthesizer Node: Combines information from multiple agents when necessary
 
 4. State Management
