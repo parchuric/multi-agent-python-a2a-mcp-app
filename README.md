@@ -10,9 +10,50 @@ This project is a multi-agent application that leverages the LargeGraph framewor
 - **LangGraph Orchestration**: Uses LangGraph for advanced agent coordination
 - **Anti-recursion Protection**: Prevents infinite loops between agents
 
-## Architecture
+## Architecture Components:
+1. User Interface
+Web Interface: The frontend that collects user queries and displays responses
 
-The system uses a directed graph to orchestrate the flow of information:
+2. API Layer
+Express API: Handles HTTP requests, communicates with the LangGraph agent system
+
+3. Agent Graph
+Analyzer Node: Determines the topic category of the user query
+Router Node: Directs the query to the appropriate specialized agent
+Agent Nodes:
+Weather Agent: Handles weather-related queries
+Sports Agent: Processes sports-related information
+News Agent: Provides current events information
+Stocks Agent: Delivers financial market data
+Health Agent: Answers health and wellness questions
+Evaluator Node: Determines if additional information is needed from other agents
+Synthesizer Node: Combines information from multiple agents when necessary
+
+4. State Management
+AgentState: Shared state object that tracks:
+User query
+Identified topic
+Agent responses
+Conversation history
+Routing decisions
+
+5. External Services
+Azure OpenAI: For natural language understanding and generation
+Domain-specific APIs: Weather, News, Sports, and Stocks data sources
+
+## Flow of Information:
+
+User sends a query through the web interface
+Express API receives the query and initializes the agent graph
+Analyzer node categorizes the query by topic
+Router directs the query to the appropriate specialized agent
+Agent processes the query, potentially calling external APIs
+Evaluator determines if the response is complete or needs input from other agents
+If more information is needed, query is routed to additional agents
+Synthesizer combines information from multiple agents when necessary
+Final response is returned to the API and displayed to the user
+
+This architecture leverages LangGraph's directed graph structure to create a workflow where specialized agents can collaborate on complex queries, with state being maintained throughout the entire process.
 
 1. **Query Analysis**: Determines the query's primary topic
 2. **Agent Routing**: Directs the query to the appropriate specialized agent
