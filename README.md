@@ -88,34 +88,34 @@ Ask questions through the web interface or API
 5. Example Flow
 
 Simple Flow Example:
-You ask: "What's the weather like in Seattle today?"
-The analyzer identifies this as a weather-related question
-The router directs it to the weather agent
-The weather agent processes the question (using API data if available)
-The evaluator confirms the answer is complete
-The synthesizer formats a nice response about Seattle's weather
+You ask: "What's the weather like in Seattle today?"\
+The analyzer identifies this as a weather-related question\
+The router directs it to the weather agent\
+The weather agent processes the question (using API data if available)\
+The evaluator confirms the answer is complete\
+The synthesizer formats a nice response about Seattle's weather\
 You receive the answer in the web interface
 
 Complex Flow Example with A2A and MCP:
-You ask: "How might the rainy weather in Seattle affect the Seahawks game this weekend, and what impact could this have on related sports stocks?"
-The analyzer identifies multiple topics: weather, sports, and stocks
+You ask: "How might the rainy weather in Seattle affect the Seahawks game this weekend, and what impact could this have on related sports stocks?"\
+The analyzer identifies multiple topics: weather, sports, and stocks\
 The router decides to consult multiple specialized agents
 
 Using A2A protocol:
-The weather agent retrieves Seattle's forecast (rain predicted)
-The weather agent sends this context to the sports agent using A2A messaging
-The sports agent analyzes how rain affects Seahawks' performance
-The sports agent shares this analysis with the stocks agent
+The weather agent retrieves Seattle's forecast (rain predicted)\
+The weather agent sends this context to the sports agent using A2A messaging\
+The sports agent analyzes how rain affects Seahawks' performance\
+The sports agent shares this analysis with the stocks agent\
 The stocks agent evaluates potential market impacts on related companies
 
 Using MCP protocol:
-All agents maintain shared awareness of the conversation context
-The MCP handler ensures each agent knows what other agents have already addressed
-This prevents redundant information and creates coherent handoffs between agents
-The evaluator reviews the collective information and determines more details are needed about specific stocks
-The router sends the query back to the stocks agent for additional information
-The synthesizer combines weather data, sports analysis, and financial insights into a comprehensive response
-You receive an integrated answer that covers all aspects of your question
+All agents maintain shared awareness of the conversation context\
+The MCP handler ensures each agent knows what other agents have already addressed\
+This prevents redundant information and creates coherent handoffs between agents\
+The evaluator reviews the collective information and determines more details are needed about specific stocks\
+The router sends the query back to the stocks agent for additional information\
+The synthesizer combines weather data, sports analysis, and financial insights into a comprehensive response\
+You receive an integrated answer that covers all aspects of your question\
 This complex example demonstrates how A2A enables direct agent-to-agent communication for collaborative problem-solving, while MCP ensures all agents maintain awareness of the evolving conversation context.
 
 ## Setup
