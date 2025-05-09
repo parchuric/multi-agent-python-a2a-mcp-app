@@ -76,14 +76,14 @@ This system uses two special protocols:
 A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effectively\
 ****#** A2A Protocol Implementation in the Multi-Agent System******
 
-      The Agent-to-Agent (A2A) protocol is implemented in this project to enable direct communication between specialized agents, allowing them to collaborate more effectively on complex queries. Here's a detailed explanation of how it works:
+The Agent-to-Agent (A2A) protocol is implemented in this project to enable direct communication between specialized agents, allowing them to collaborate more effectively on complex queries. Here's a detailed explanation of how it works:
 
-      ## 1. Core A2A Components
+   ## 1. Core A2A Components
 
-      ### A2A Handler
-      The core implementation of the A2A protocol is in a2a_protocol.py, which defines:
+   ### A2A Handler
+   The core implementation of the A2A protocol is in a2a_protocol.py, which defines:
 
-      - A message structure for agent communication
+   - A message structure for agent communication
       - Functions to send/receive messages between agents
       - Thread management to maintain conversation context
 
@@ -149,8 +149,8 @@ A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effe
 
       2. Analysis & Routing:
          ```python
-         # Analyzer identifies topics and sends to router via A2A
-         await analyzer.send_a2a_message(
+        # Analyzer identifies topics and sends to router via A2A
+        await analyzer.send_a2a_message(
             receiver="Router",
             content="Query involves weather, sports, and stocks topics",
             message_type="topic_identification",
@@ -160,8 +160,8 @@ A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effe
 
       3. Weather Agent Processing:
          ```python
-         # Weather agent gets information and shares with sports agent
-         weather_data = "Rain predicted in Seattle: 80% chance of precipitation..."
+        # Weather agent gets information and shares with sports agent
+        weather_data = "Rain predicted in Seattle: 80% chance of precipitation..."
          await weather_agent.send_a2a_message(
             receiver="SportsAgent",
             content=weather_data,
@@ -173,11 +173,11 @@ A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effe
 
       4. Sports Agent Processing:
          ```python
-         # Sports agent processes weather data
-         await sports_agent.process_received_messages(thread_id=thread_id)
+        # Sports agent processes weather data
+        await sports_agent.process_received_messages(thread_id=thread_id)
          
-         # Shares analysis with stocks agent
-         sports_analysis = "Rain typically reduces Seahawks' passing effectiveness by 15%..."
+        # Shares analysis with stocks agent
+        sports_analysis = "Rain typically reduces Seahawks' passing effectiveness by 15%..."
          await sports_agent.send_a2a_message(
             receiver="StocksAgent",
             content=sports_analysis,
@@ -189,11 +189,11 @@ A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effe
 
       5. Stocks Agent Processing:
          ```python
-         # Stocks agent processes weather and sports information
-         await stocks_agent.process_received_messages(thread_id=thread_id)
+        # Stocks agent processes weather and sports information
+        await stocks_agent.process_received_messages(thread_id=thread_id)
          
-         # Generates financial analysis based on combined information
-         stocks_analysis = "Companies like Nike (NKE) and DraftKings (DKNG) may see..."
+        # Generates financial analysis based on combined information
+        stocks_analysis = "Companies like Nike (NKE) and DraftKings (DKNG) may see..."
          ```
 
       ## 5. Advantages of A2A in this System
@@ -212,28 +212,28 @@ A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effe
    
 MCP Protocol (Model Context Protocol): Helps share and maintain context throughout the conversation. In this multi-agent Python application, the Model Context Protocol (MCP) is implemented with distinct components that represent the MCP host, client, and server. Let us break down how these roles are assigned in the application:
 
-      ## MCP Components Overview
+## MCP Components Overview
 
-      ### 1. Model Host
-      In MCP terminology, the **Model Host** is the component that provides access to the underlying language model and manages its context.
+   ### 1. Model Host
+   In MCP terminology, the **Model Host** is the component that provides access to the underlying language model and manages its context.
 
-      **In this application**:
+   **In this application**:
       - The Azure OpenAI integration serves as the Model Host
       - It's typically initialized in the `main.py` file
       - This component manages connections to the Azure OpenAI API and provides the foundation LLM capabilities
 
-      ### 2. MCP Server
-      The **MCP Server** manages the context for conversations and interactions between agents.
+   ### 2. MCP Server
+   The **MCP Server** manages the context for conversations and interactions between agents.
 
-      **In this application**:
+   **In this application**:
       - The `mcp_protocol.py` in the `utils` folder contains an MCP server implementation
       - This component stores and manages shared context between different agent interactions
       - It creates a central "memory" that persists throughout the conversation flow
 
-      ### 3. MCP Client
-      **MCP Clients** are components that connect to the MCP Server to access and modify the shared context.
+   ### 3. MCP Client
+   **MCP Clients** are components that connect to the MCP Server to access and modify the shared context.
 
-      **In this application**:
+   **In this application**:
       - Each specialized agent (weather, sports, news, etc.) acts as an MCP Client
       - The `mcp_handler` parameter passed to each agent connects them to the MCP infrastructure
       - Agents use this handler to retrieve context about what other agents have already processed
@@ -242,7 +242,7 @@ MCP Protocol (Model Context Protocol): Helps share and maintain context througho
 
 Here's the flow of how these components interact:
 
-      1. **Initialization**:
+   1. **Initialization**:
       - The Model Host (Azure OpenAI integration) is set up in `main.py`
       - An MCP Server instance is created to manage shared context
       - MCP Clients (handlers) are created for each agent
