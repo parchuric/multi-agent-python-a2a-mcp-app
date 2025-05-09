@@ -70,3 +70,10 @@ class A2AProtocolHandler:
             messages = [msg for msg in messages if msg.receiver == receiver]
             
         return messages
+
+    def get_messages_for_agent(self, agent_name: str, thread_id: Optional[str] = None) -> List[A2AMessage]:
+        """Get messages addressed to a specific agent, optionally filtered by thread."""
+        messages = [msg for msg in self.message_history if msg.receiver == agent_name]
+        if thread_id:
+            messages = [msg for msg in messages if msg.thread_id == thread_id]
+        return messages

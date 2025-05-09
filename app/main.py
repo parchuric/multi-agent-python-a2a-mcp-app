@@ -79,7 +79,13 @@ async def init_langgraph():
         weather_agent = WeatherAgent(llm, WEATHER_SYSTEM_PROMPT, "WeatherAgent", a2a_handler, mcp_handler)
         sports_agent = SportsAgent(llm, SPORTS_SYSTEM_PROMPT, "SportsAgent", a2a_handler, mcp_handler)
         news_agent = NewsAgent(llm, NEWS_SYSTEM_PROMPT, "NewsAgent", a2a_handler, mcp_handler)
-        stocks_agent = StocksAgent(llm, STOCKS_SYSTEM_PROMPT, "StocksAgent", a2a_handler, mcp_handler)
+        stocks_agent = StocksAgent(
+            name="StocksAgent", 
+            llm=llm, 
+            a2a_handler=a2a_handler, 
+            mcp_handler=mcp_handler
+            # Remove the memory parameter
+        )
         health_agent = HealthAgent(llm, HEALTH_SYSTEM_PROMPT, "HealthAgent", a2a_handler, mcp_handler)
         evaluator = EvaluatorAgent(llm, EVALUATOR_SYSTEM_PROMPT, "Evaluator", a2a_handler, mcp_handler)
         synthesizer = SynthesizerAgent(llm, SYNTHESIZER_SYSTEM_PROMPT, "Synthesizer", a2a_handler, mcp_handler)
@@ -121,22 +127,98 @@ def start_api_server(graph):
 
 async def test_query(graph):
     """Test the system with a sample query."""
-    test_queries = [
-        "What's the weather like in Seattle today?",
-        "Who won the latest NBA championship?",
-        "What are the latest headlines about AI technology?",
-        "How is Apple stock performing this week?",
-        "What are some tips for reducing stress and anxiety?"
-    ]
-    
-    for query in test_queries:
-        logger.info(f"Testing query: {query}")
-        result = await graph.process_query(query)
-        print(f"\n==== Query: {query} ====\n")
-        print(f"Topic: {result['topic']}")
-        print(f"Agents consulted: {result['agents_consulted']}")
-        print(f"Response: {result['response']}")
+    # Test a single query in debug mode with full error handling
+    try:
+        test_query = "What's the weather like in Seattle today?"
+        logger.info(f"Testing query: {test_query}")
+        
+        response = await graph.process_query(test_query)
+        print(f"\n==== Query: {test_query} ====\n")
+        # Handle either string or dictionary response format
+        if isinstance(response, dict):
+            print(f"Topic: {response.get('topic', 'N/A')}")
+            print(f"Agents consulted: {response.get('agents_consulted', 'N/A')}")
+            print(f"Response: {response.get('response', 'No response available')}")
+        else:
+            # It's a string response
+            print(response)
         print("\n" + "="*50 + "\n")
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    # Only run the other queries if you want to test them
+    test_other_queries = False
+    if test_other_queries:
+        test_queries = [
+            "Who won the latest NBA championship?",
+            "What are the latest headlines about AI technology?",
+            "How is Apple stock performing this week?",
+            "What are some tips for reducing stress and anxiety?"
+        ]
+        
+        for query in test_queries:
+            try:
+                logger.info(f"Testing query: {query}")
+                result = await graph.process_query(query)
+                print(f"\n==== Query: {query} ====\n")
+                
+                # Handle either string or dictionary response format
+                if isinstance(result, dict):
+                    print(f"Topic: {result.get('topic', 'N/A')}")
+                    print(f"Agents consulted: {result.get('agents_consulted', 'N/A')}")
+                    print(f"Response: {result.get('response', 'No response available')}")
+                else:
+                    # It's a string response
+                    print(result)
+                print("\n" + "="*50 + "\n")
+            except Exception as e:
+                logger.error(f"Error processing query '{query}': {str(e)}")
+
+async def test_stock_agent(graph):
+    """Test the stock agent specifically."""
+    try:
+        test_query = "How is Microsoft stock performing today?"
+        logger.info(f"Testing stock agent with query: {test_query}")
+        
+        # Set up state that directly uses the stock agent
+        initial_state = {
+            "user_query": test_query,
+            "selected_agents": ["StocksAgent"],
+            "conversation_history": [],
+            "metadata": {
+                "thread_id": str(uuid.uuid4())
+            }
+        }
+        
+        # Process directly with the specialized agent node
+        stocks_agent = next((agent for agent in graph.specialized_agents 
+                           if agent.name == "StocksAgent"), None)
+        
+        if not stocks_agent:
+            logger.error("StocksAgent not found in specialized agents")
+            return
+            
+        # Test API key is loaded
+        logger.info(f"Stock Agent API Key: {'Present' if stocks_agent.api_key else 'Missing'}")
+        
+        # Test stock data retrieval directly
+        msft_data = await stocks_agent.get_stock_data("MSFT")
+        logger.info(f"Direct MSFT data test: {msft_data}")
+        
+        # Test full processing
+        response = await stocks_agent.process(test_query)
+        logger.info(f"StocksAgent response: {response}")
+        
+        print(f"\n==== Stock Agent Test: {test_query} ====\n")
+        print(response)
+        print("\n" + "="*50 + "\n")
+        
+    except Exception as e:
+        logger.error(f"Error testing stock agent: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 async def main():
     """Main entry point for the application."""

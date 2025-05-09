@@ -246,8 +246,34 @@ class MultiAgentLangGraph:
             })
             return state
         
-        # Evaluate the responses
-        evaluation = await self.evaluator.evaluate_responses(state["user_query"], state["agent_responses"])
+        # Evaluate the responses - MODIFY THIS SECTION
+        try:
+            # Check if the responses are dictionary objects as expected
+            if not isinstance(state["agent_responses"], dict):
+                logger.warning(f"Expected agent_responses to be dict, got {type(state['agent_responses'])}")
+                evaluation = {
+                    "needs_more_info": False,
+                    "missing_info": "Could not process agent responses properly."
+                }
+            else:
+                evaluation = await self.evaluator.evaluate_responses(state["user_query"], state["agent_responses"])
+                
+                # If evaluation is returned as a string instead of a dict, convert it
+                if isinstance(evaluation, str):
+                    # Parse the string response to determine if more info is needed
+                    needs_more = "INSUFFICIENT" in evaluation.upper() or "INCOMPLETE" in evaluation.upper()
+                    evaluation = {
+                        "needs_more_info": needs_more,
+                        "missing_info": evaluation
+                    }
+        
+        except Exception as e:
+            logger.error(f"Error during evaluation: {str(e)}")
+            # Provide a fallback evaluation
+            evaluation = {
+                "needs_more_info": False,
+                "missing_info": f"Error during evaluation: {str(e)}"
+            }
         
         # Add evaluation result to state
         state["needs_additional_info"] = evaluation["needs_more_info"]
@@ -285,26 +311,47 @@ class MultiAgentLangGraph:
         """Node function for synthesizing responses from multiple agents."""
         logger.info("Synthesizing final response")
         
-        # Synthesize the final response
-        final_response = await self.synthesizer.synthesize_responses(state["user_query"], state["agent_responses"])
-        
-        # Add the final response to state
-        state["final_response"] = final_response
-        
-        # Record in conversation history
-        state["conversation_history"].append({
-            "agent": "Synthesizer",
-            "action": "final_synthesis",
-            "result": final_response
-        })
-        
-        # Add to context using MCP
-        self.synthesizer.add_context(
-            content=final_response,
-            context_type="final_response",
-            importance=1.0
-        )
-        
+        try:
+            # Add debug information
+            logger.debug(f"Agent responses: {state.get('agent_responses', {})}")
+            
+            # Synthesize the final response
+            final_response = await self.synthesizer.synthesize_responses(state["user_query"], state["agent_responses"])
+            
+            # Add extensive debug information
+            logger.debug(f"Final response type: {type(final_response)}")
+            if isinstance(final_response, str):
+                logger.debug(f"Final response (str): {final_response[:100]}...")
+            else:
+                logger.debug(f"Final response (not str): {final_response}")
+            
+            # Always convert to string if not already
+            if not isinstance(final_response, str):
+                final_response = str(final_response)
+            
+            # Directly use the string response
+            state["final_response"] = final_response
+            
+            # Record in conversation history
+            state["conversation_history"].append({
+                "agent": "Synthesizer",
+                "action": "final_synthesis",
+                "result": final_response
+            })
+            
+            # Add to context using MCP
+            self.synthesizer.add_context(
+                content=final_response,
+                context_type="final_response",
+                importance=1.0
+            )
+            
+        except Exception as e:
+            logger.error(f"Error during synthesis: {str(e)}")
+            logger.exception("Detailed traceback")
+            # Provide a fallback response
+            state["final_response"] = "I apologize, but I encountered an issue while generating a response."
+            
         return state
     
     def _needs_more_info(self, state: AgentState) -> str:
@@ -316,76 +363,227 @@ class MultiAgentLangGraph:
             logger.info("Information is complete, proceeding to synthesis")
             return "complete"
     
-    async def process_query(self, query: str) -> Dict[str, Any]:
-        """Process a user query through the entire workflow."""
-        # Generate a thread ID for this conversation
+    async def process_query(self, query: str) -> Dict:
+        """Process a query through the multi-agent workflow."""
+        # Initialize thread ID for this conversation
         thread_id = str(uuid.uuid4())
         
-        # Initialize the state
-        initial_state = AgentState(
-            user_query=query,
-            identified_topic=None,
-            agent_responses={},
-            conversation_history=[],
-            routing_decisions=[],
-            current_agents=set(),
-            needs_additional_info=False,
-            final_response=None,
-            errors=[],
-            metadata={"thread_id": thread_id, "routing_attempts": 0}
+        # Initialize state
+        initial_state = {
+            "user_query": query,
+            "conversation_history": [],  # Initialize empty conversation history
+            "metadata": {
+                "thread_id": thread_id
+            }
+        }
+        
+        try:
+            # Run the graph (changed from self.graph to self.workflow)
+            final_state = await self.workflow.ainvoke(initial_state)
+            
+            # Return a comprehensive result dictionary
+            return {
+                "response": final_state.get("final_response", "No response generated"),
+                "topic": final_state.get("topic", "unknown"),
+                "agents_consulted": list(final_state.get("agent_responses", {}).keys()),
+                "conversation_history": final_state.get("conversation_history", [])
+            }
+        
+        except Exception as e:
+            logger.error(f"Error during query processing: {type(e).__name__}: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {
+                "response": f"Error processing query: {str(e)}",
+                "topic": "error",
+                "agents_consulted": [],
+                "conversation_history": []
+            }
+
+# First process any received messages from other agents. Then perform the agent's primary function
+async def _send_messages_to_next_agents(self, state: AgentState) -> None:
+    """
+    Send messages to the next agents in the workflow as needed.
+    This method iterates through the list of current agents in the state and sends 
+    an agent-to-agent (A2A) message to each of them. The message contains the user query 
+    and is routed using the "query_routing" message type. A thread ID is included in the 
+    message metadata to track the communication thread.
+    Args:
+        state (AgentState): The current state of the workflow, which includes:
+            - current_agents (list): A list of agent names to send messages to.
+            - user_query (str): The query provided by the user.
+            - metadata (dict, optional): Additional metadata, including a thread ID.
+    Raises:
+        KeyError: If an agent in `current_agents` is not found in `self.agent_mapping`.
+    Notes:
+        - The `agent_mapping` attribute is used to resolve agent names to agent objects.
+        - A new UUID is generated for the thread ID if it is not provided in the metadata.
+    """
+    """Send messages to the next agents in the workflow as needed."""
+    for agent_name in state["current_agents"]:
+        if agent_name in self.agent_mapping:
+            agent = self.agent_mapping[agent_name]
+            await agent.send_a2a_message(
+                receiver=agent_name,
+                content=f"Please process this query: {state['user_query']}",
+                message_type="query_routing",
+                thread_id=str(state.get("metadata", {}).get("thread_id", uuid.uuid4()))
+            )
+    async def _run_analyzer_node(self, state):
+        """Run the analyzer agent to identify the topic and entities in the query."""
+        # First process any received messages
+        await self.analyzer.process_received_messages(
+            thread_id=str(state.get("metadata", {}).get("thread_id", ""))
         )
         
-        # Run the workflow
-        try:
-            result = await self.workflow.ainvoke(initial_state)
-            
-            # Prepare the response
-            response = {
-                "query": query,
-                "topic": result["identified_topic"],
-                "agents_consulted": list(result["agent_responses"].keys()),
-                "response": result["final_response"],
-                "conversation_history": result["conversation_history"],
-                "metadata": {
-                    "thread_id": thread_id,
-                    "a2a_message_count": len(self.a2a_handler.message_history),
-                    "mcp_context_count": len(self.mcp_handler.contexts)
-                }
-            }
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Error processing query: {e}")
-            
-            # Fallback to simple response using the analyzer agent
+        # Then perform the analyzer's primary function
+        topic = await self.analyzer.process(f"Analyze this query: {state['user_query']}")
+        
+        # Use A2A protocol to communicate the result to the router
+        await self.analyzer.send_a2a_message(
+            receiver="Router",
+            content=f"I've identified the query topic as: {topic}",
+            message_type="topic_identification",
+            thread_id=str(state.get("metadata", {}).get("thread_id", uuid.uuid4()))
+        )
+        
+        return {"topic": topic, **state}
+
+    async def _run_router_node(self, state):
+        """Run the router agent to determine which specialized agents to use."""
+        thread_id = str(state.get("metadata", {}).get("thread_id", ""))
+        
+        # Process received messages from analyzer
+        await self.router.process_received_messages(thread_id=thread_id)
+        
+        # Proceed with routing
+        query = state["user_query"]
+        topic = state["topic"]
+        
+        routing_prompt = f"Topic: {topic}\nQuery: {query}\n\nWhich specialized agents should handle this query?"
+        routing_result = await self.router.process(routing_prompt)
+        
+        # Extract agent names from the routing result
+        agent_names = self._parse_agent_names(routing_result)
+        
+        # Use A2A protocol to communicate with each selected agent
+        for agent_name in agent_names:
+            specialized_agent = self._get_agent_by_name(agent_name)
+            if specialized_agent:
+                await self.router.send_a2a_message(
+                    receiver=agent_name,
+                    content=f"Please process this query: {query}",
+                    message_type="query_routing",
+                    metadata={"topic": topic},
+                    thread_id=thread_id
+                )
+        
+        return {"selected_agents": agent_names, **state}
+
+    async def _run_specialized_agent_node(self, state: AgentState) -> AgentState:
+        """Run specialized agents to handle the query."""
+        logger.info(f"Processing with agents: {state['selected_agents']}")
+        
+        # Initialize agent responses if not already there
+        if "agent_responses" not in state:
+            state["agent_responses"] = {}
+        
+        # Process with each selected agent
+        for agent_name in state["selected_agents"]:
             try:
-                # If we got to a point where we have some agent responses, use them
-                if hasattr(initial_state, "agent_responses") and initial_state["agent_responses"]:
-                    responses_text = ""
-                    for agent, response in initial_state["agent_responses"].items():
-                        responses_text += f"{agent}: {response}\n\n"
+                # Get the agent instance
+                agent = self.agent_mapping.get(agent_name)
+                if not agent:
+                    logger.warning(f"Agent {agent_name} not found in agent mapping")
+                    continue
                     
-                    fallback = await self.synthesizer.synthesize_responses(query, initial_state["agent_responses"])
-                else:
-                    # Otherwise use the news agent as a fallback
-                    fallback = await self.news_agent.process_query(query)
+                # Process the query with this agent
+                response = await agent.process(state["user_query"])
                 
-                return {
-                    "query": query,
-                    "topic": initial_state.get("identified_topic", "unknown"),
-                    "agents_consulted": ["FallbackAgent"],
-                    "response": f"I encountered some difficulties while processing your request about AI technology news. Here's what I can tell you:\n\n{fallback}",
-                    "error": str(e),
-                    "metadata": {"error_handled": "true"}
-                }
-            except:
-                # Last resort fallback
-                return {
-                    "query": query,
-                    "error": str(e),
-                    "response": "I'm sorry, I encountered an error while processing your query about AI technology news. Please try a more specific question or check back later."
-                }
+                # Add response to state
+                state["agent_responses"][agent_name] = response
+                
+                # Record in conversation history
+                state["conversation_history"].append({
+                    "agent": agent_name,
+                    "action": "process_query",
+                    "result": response
+                })
+                
+                # Add to context using MCP
+                agent.add_context(
+                    content=response,
+                    context_type=f"{agent_name.lower()}_information",
+                    importance=0.8
+                )
+                
+            except Exception as e:
+                logger.error(f"Error processing with agent {agent_name}: {str(e)}")
+                logger.exception("Detailed traceback")
+                # Add error response
+                state["agent_responses"][agent_name] = f"Error: Could not process with {agent_name}"
+        
+        return state
+
+    async def _run_evaluator_node(self, state):
+        """Run the evaluator agent to determine if the responses are sufficient."""
+        thread_id = str(state.get("metadata", {}).get("thread_id", ""))
+        
+        # Process all received messages from specialized agents
+        await self.evaluator.process_received_messages(thread_id=thread_id)
+        
+        # Get all relevant context
+        all_context = self.evaluator.get_relevant_contexts()
+        
+        # Evaluate completeness
+        evaluation_prompt = f"""
+        Query: {state['user_query']}
+        Topic: {state['topic']}
+        
+        Gathered information:
+        {all_context}
+        
+        Is this information sufficient to answer the query completely? 
+        If yes, say "SUFFICIENT". 
+        If not, explain what's missing and say "INSUFFICIENT".
+        """
+        
+        evaluation_result = await self.evaluator.process(evaluation_prompt)
+        
+        # Inform synthesizer via A2A
+        await self.evaluator.send_a2a_message(
+            receiver="Synthesizer",
+            content=evaluation_result,
+            message_type="evaluation_result",
+            thread_id=thread_id
+        )
+        
+        is_sufficient = "SUFFICIENT" in evaluation_result.upper()
+        
+        return {"evaluation": evaluation_result, "is_sufficient": is_sufficient, **state}
+
+    async def _run_synthesizer_node(self, state):
+        """Synthesize the final response from all agent outputs."""
+        thread_id = str(state.get("metadata", {}).get("thread_id", ""))
+        
+        # Process messages from evaluator
+        await self.synthesizer.process_received_messages(thread_id=thread_id)
+        
+        # Get all relevant context
+        all_context = self.synthesizer.get_relevant_contexts()
+        
+        synthesis_prompt = f"""
+        Query: {state['user_query']}
+        
+        Information gathered:
+        {all_context}
+        
+        Please synthesize a comprehensive, well-formatted answer to the query.
+        """
+        
+        final_response = await self.synthesizer.process(synthesis_prompt)
+        
+        return {"final_response": final_response, **state}
 
 from langgraph.graph import StateGraph
 from typing import TypedDict, List, Dict, Any

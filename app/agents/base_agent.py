@@ -97,3 +97,51 @@ class BaseAgent:
         """Get formatted relevant contexts for prompting."""
         contexts = self.mcp_handler.get_contexts(context_type=context_type, min_importance=min_importance)
         return self.mcp_handler.format_contexts_for_prompt(contexts)
+    
+    async def process_received_messages(self, thread_id: Optional[str] = None) -> List[str]:
+        """Process messages received from other agents.
+        
+        Args:
+            thread_id: Optional thread ID to filter messages
+            
+        Returns:
+            List of responses generated from processing the messages
+        """
+        if not self.a2a_handler:
+            return []
+            
+        # Get messages addressed to this agent
+        messages = self.a2a_handler.get_messages_for_agent(self.name, thread_id)
+        
+        # Sort messages by order received (assuming they have some timestamp or sequence)
+        # This is a simple approach; you might want a more sophisticated ordering
+        
+        responses = []
+        for message in messages:
+            # Format the message for processing
+            prompt = f"""
+            You have received a message from another agent:
+            
+            SENDER: {message.sender}
+            MESSAGE TYPE: {message.message_type}
+            CONTENT: {message.content}
+            
+            Process this message and provide an appropriate response.
+            """
+            
+            response = await self.process(prompt)
+            responses.append(response)
+            
+            # Optionally, send a response back to the sender
+            await self.send_a2a_message(
+                receiver=message.sender,
+                content=response,
+                message_type="response",
+                thread_id=message.thread_id
+            )
+            
+        return responses
+
+    async def process_query(self, query: str) -> str:
+        """Default implementation that redirects to process method."""
+        return await self.process(query)
