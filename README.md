@@ -16,7 +16,7 @@ The agents communicate using the A2A protocol, and share contextual information 
 
 Key Components and Flow
 
-1. The Core Structure
+1. The Core Structure\
 The application is organized in these main parts:
 
       app/
@@ -44,39 +44,39 @@ The application is organized in these main parts:
 2. **Information Flow**
       When you ask a question, here's what happens:
       
-      **Your Question**
+      **Your Question** \
       You ask something like "What's the weather in Seattle?"\
       This gets sent to the Flask web server in server.py
       
-      **Analysis Phase**
+      **Analysis Phase** \
       The AnalyzerAgent looks at your question and identifies what it's about (weather, sports, etc.). It tags your question with a topic
       
-      **Routing Phase**
+      **Routing Phase** \
       The RouterAgent receives the analyzed question\
       It decides which specialized agent(s) should handle your question\
       For "What's the weather in Seattle?", it would choose the WeatherAgent
       
-      **Information Gathering Phase**
+      **Information Gathering Phase** \
       The chosen specialized agent (e.g., WeatherAgent) processes your question\
       If it has API keys (like in your .env file), it fetches real data\
       Otherwise, it uses its knowledge to give the best answer it can
       
-      **Evaluation Phase**
+      **Evaluation Phase** \
       The EvaluatorAgent checks if the answer is complete\
       If not, it might go back to the router to get more information
       
-      **Synthesis Phase**
+      **Synthesis Phase** \
       The SynthesizerAgent takes all the collected information\
       It creates a well-formatted, complete answer\
       This final answer is returned to you
 
-3. **Special Communication Features**
+3. **Special Communication Features** \
 This system uses two special protocols:
 
       A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effectively\
       MCP Protocol (Model Context Protocol): Helps share and maintain context throughout the conversation
       
- 4. **How to Run the Application**
+ 4. **How to Run the Application** \
       Make sure you have Python installed\
       Set up environment variables in the .env file:\
       Azure OpenAI credentials (for the AI models)\
@@ -85,10 +85,10 @@ This system uses two special protocols:
       Access the web interface at http://localhost:3000\
       Ask questions through the web interface or API
 
-5. **Example Flow**
+5. **Example Flow** 
 
-**Simple Flow Example:**
-      You ask: "What's the weather like in Seattle today?"\
+**Simple Flow Example:** \
+      You ask: \"What's the weather like in Seattle today?"\
       The analyzer identifies this as a weather-related question\
       The router directs it to the weather agent\
       The weather agent processes the question (using API data if available)\
@@ -96,33 +96,31 @@ This system uses two special protocols:
       The synthesizer formats a nice response about Seattle's weather\
       You receive the answer in the web interface
 
-**Complex Flow Example with A2A and MCP:**
-      You ask:
-      
-      "How might the rainy weather in Seattle affect the Seahawks game this weekend, and what impact could this have on related sports stocks?"\
-      The analyzer identifies multiple topics: weather, sports, and stocks\
-      The router decides to consult multiple specialized agents
+**Complex Flow Example with A2A and MCP:** \
+      You ask: \
+"How might the rainy weather in Seattle affect the Seahawks game this weekend, and what impact could this have on related sports stocks?"\
+The analyzer identifies multiple topics: weather, sports, and stocks\
+The router decides to consult multiple specialized agents
 
-**Using A2A protocol:**
+**Using A2A protocol:** \
+The weather agent retrieves Seattle's forecast (rain predicted)\
+The weather agent sends this context to the sports agent using A2A messaging\
+The sports agent analyzes how rain affects Seahawks' performance\
+The sports agent shares this analysis with the stocks agent\
+The stocks agent evaluates potential market impacts on related companies
 
-      The weather agent retrieves Seattle's forecast (rain predicted)\
-      The weather agent sends this context to the sports agent using A2A messaging\
-      The sports agent analyzes how rain affects Seahawks' performance\
-      The sports agent shares this analysis with the stocks agent\
-      The stocks agent evaluates potential market impacts on related companies
 
 **Using MCP protocol:**
-
-      All agents maintain shared awareness of the conversation context\
-      The MCP handler ensures each agent knows what other agents have already addressed\
-      This prevents redundant information and creates coherent handoffs between agents\
-      The evaluator reviews the collective information and determines more details are needed about specific stocks\
-      The router sends the query back to the stocks agent for additional information\
-      The synthesizer combines weather data, sports analysis, and financial insights into a comprehensive response\
-      You receive an integrated answer that covers all aspects of your question\
-      This complex example demonstrates how A2A enables direct agent-to-agent communication for collaborative problem-solving, while MCP ensures all agents maintain awareness of the evolving conversation context.
-
-## Setup
+\
+All agents maintain shared awareness of the conversation context\
+The MCP handler ensures each agent knows what other agents have already addressed\
+This prevents redundant information and creates coherent handoffs between agents\
+The evaluator reviews the collective information and determines more details are needed about specific stocks\
+The router sends the query back to the stocks agent for additional information\
+The synthesizer combines weather data, sports analysis, and financial insights into a comprehensive response\
+You receive an integrated answer that covers all aspects of your question\
+This complex example demonstrates how A2A enables direct agent-to-agent communication for collaborative problem-solving, while MCP ensures all agents maintain awareness of the evolving conversation context.
+## Setup 
 
 Clone the repository
 
