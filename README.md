@@ -74,9 +74,64 @@ The application is organized in these main parts:
 This system uses two special protocols:
 
       A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effectively\
+
+   
       MCP Protocol (Model Context Protocol): Helps share and maintain context throughout the conversation
-      
- 4. **How to Run the Application** \
+
+In this multi-agent Python application, the Model Context Protocol (MCP) is implemented with distinct components that represent the model host, client, and server. Let us break down how these roles are assigned in the application:
+
+## MCP Components Overview
+
+### 1. Model Host
+In MCP terminology, the **Model Host** is the component that provides access to the underlying language model and manages its context.
+
+**In this application**:
+- The Azure OpenAI integration serves as the Model Host
+- It's typically initialized in the `main.py` file
+- This component manages connections to the Azure OpenAI API and provides the foundation LLM capabilities
+
+### 2. MCP Server
+The **MCP Server** manages the context for conversations and interactions between agents.
+
+**In this application**:
+- The `mcp_protocol.py` in the `utils` folder contains an MCP server implementation
+- This component stores and manages shared context between different agent interactions
+- It creates a central "memory" that persists throughout the conversation flow
+
+### 3. MCP Client
+**MCP Clients** are components that connect to the MCP Server to access and modify the shared context.
+
+**In this application**:
+- Each specialized agent (weather, sports, news, etc.) acts as an MCP Client
+- The `mcp_handler` parameter passed to each agent connects them to the MCP infrastructure
+- Agents use this handler to retrieve context about what other agents have already processed
+
+## How They Work Together
+
+Here's the flow of how these components interact:
+
+1. **Initialization**:
+   - The Model Host (Azure OpenAI integration) is set up in `main.py`
+   - An MCP Server instance is created to manage shared context
+   - MCP Clients (handlers) are created for each agent
+
+2. **During Query Processing**:
+   - When a query enters the system, the Model Host provides LLM capabilities
+   - The MCP Server maintains the evolving conversation context
+   - Each agent (as an MCP Client) can:
+     - Read the shared context to understand what's already known
+     - Update the shared context with new information
+     - Use the context to avoid redundant work
+
+3. **Example in Complex Queries**:
+   - For a multi-topic query like "How will weather affect the Seahawks game and related stocks?"
+   - The weather agent processes weather information and adds it to the MCP context
+   - The sports agent reads the weather context and adds sports analysis
+   - The stocks agent reads both weather and sports context to provide financial insights
+   - This coordination happens through the MCP Server's shared context management
+  
+     
+ 5. **How to Run the Application** \
       Make sure you have Python installed\
       Set up environment variables in the .env file:\
       Azure OpenAI credentials (for the AI models)\
@@ -85,7 +140,7 @@ This system uses two special protocols:
       Access the web interface at http://localhost:3000\
       Ask questions through the web interface or API
 
-5. **Example Flow** 
+6. **Example Flow** 
 
 **Simple Flow Example:** \
       You ask: \"What's the weather like in Seattle today?"\
