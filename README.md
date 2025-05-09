@@ -129,11 +129,11 @@ pip install -r requirements.txt
 
 Set up environment variables:
 
-Copy .env.example to .env and fill in the required values, including:
-AZURE_OPENAI_ENDPOINT
-AZURE_OPENAI_API_KEY
-AZURE_OPENAI_DEPLOYMENT_ID
-Optional API keys for NEWS_API_KEY, STOCKS_API_KEY, etc.
+Copy .env.example to .env and fill in the required values, including: \
+AZURE_OPENAI_ENDPOINT \
+AZURE_OPENAI_API_KEY \
+AZURE_OPENAI_DEPLOYMENT_ID \
+Optional API keys for NEWS_API_KEY, STOCKS_API_KEY, etc. \
 Start the server:
 
 API Endpoints
