@@ -74,7 +74,7 @@ The application is organized in these main parts:
 This system uses two special protocols:
 
 A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effectively\
-# A2A Protocol Implementation in the Multi-Agent System
+****#** A2A Protocol Implementation in the Multi-Agent System******
 
       The Agent-to-Agent (A2A) protocol is implemented in this project to enable direct communication between specialized agents, allowing them to collaborate more effectively on complex queries. Here's a detailed explanation of how it works:
 
