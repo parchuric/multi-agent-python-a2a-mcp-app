@@ -1,0 +1,12 @@
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-core>=0.1.0
+langgraph>=0.0.15
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+openai>=1.0.0
+flask>=2.3.0
+flask-cors>=4.0.0
+requests>=2.31.0
+google-generativeai>=0.3.0  # For Google A2A protocol
+azure-identity>=1.12.0  # For Azure authentication

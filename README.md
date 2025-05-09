@@ -1,125 +1,151 @@
-# Multi-Agent Application
+# Multi-Agent Python Application with A2A and MCP
 
-This project is a multi-agent application that leverages the LargeGraph framework and Azure OpenAI to provide answers across five topics: weather, sports, breaking news, the stock market, and fitness/healthcare. 
+This project demonstrates a multi-agent system using LangChain, with support for Google's Agent-to-Agent (A2A) protocol and Model Context Protocol (MCP).
 
-## Features
+## Overview
 
-- **Intelligent Query Analysis**: Automatically categorizes user queries by topic
-- **Specialized Agents**: Dedicated agents for weather, sports, news, stocks, and health
-- **Collaborative Intelligence**: Agents can work together on complex queries
-- **LangGraph Orchestration**: Uses LangGraph for advanced agent coordination
-- **Anti-recursion Protection**: Prevents infinite loops between agents
+This multi-agent AI system can answer different types of questions by routing them to specialized agents. Think of it as a team of experts working together where:
 
-## Architecture Components:
-1. User Interface
-Web Interface: The frontend that collects user queries and displays responses
+One expert analyzes your question.
+Another expert decides who should answer it.
+Specialized experts (for weather, sports, news, stocks, or health) provide information.
+Another expert evaluates if the answer is complete.
+A final expert puts everything together in a nice response.
 
-2. API Layer
-Express API: Handles HTTP requests, communicates with the LangGraph agent system
+The agents communicate using the A2A protocol, and share contextual information using MCP.
 
-3. Agent Graph
-Analyzer Node: Determines the topic category of the user query\
-Router Node: Directs the query to the appropriate specialized agent\
-Agent Nodes:\
-Weather Agent: Handles weather-related queries\
-Sports Agent: Processes sports-related information\
-News Agent: Provides current events information\
-Stocks Agent: Delivers financial market data\
-Health Agent: Answers health and wellness questions\
-Evaluator Node: Determines if additional information is needed from other agents\
-Synthesizer Node: Combines information from multiple agents when necessary
+Key Components and Flow
 
-4. State Management
-AgentState: Shared state object that tracks:
-User query
-Identified topic
-Agent responses
-Conversation history
-Routing decisions
+1. The Core Structure
+The application is organized in these main parts:
 
-5. External Services
-Azure OpenAI: For natural language understanding and generation
-Domain-specific APIs: Weather, News, Sports, and Stocks data sources
+app/
+├── agents/            # The different AI experts
+│   ├── analyzer_agent.py      # Understands what you're asking
+│   ├── router_agent.py        # Decides which experts to consult
+│   ├── weather_agent.py       # Weather specialist
+│   ├── sports_agent.py        # Sports specialist
+│   ├── news_agent.py          # News specialist
+│   ├── stocks_agent.py        # Finance specialist
+│   ├── health_agent.py        # Health specialist
+│   ├── evaluator_agent.py     # Checks if answers are complete
+│   └── synthesizer_agent.py   # Combines everything into a final answer
+├── api/               # Web server parts
+│   └── server.py              # Handles web requests
+├── chains/            # Orchestration logic
+│   └── langgraph_chain.py     # Controls the flow between agents
+├── models/            # Data structures
+│   └── state.py               # Keeps track of the conversation
+├── utils/             # Helper tools
+│   ├── a2a_protocol.py        # Helps agents communicate
+│   └── mcp_protocol.py        # Helps share context between agents
+└── main.py            # Starting point of the application
 
-## Flow of Information:
+2. Information Flow
+When you ask a question, here's what happens:
 
-1. User sends a query through the web interface 
-2. Express API receives the query and initializes the agent graph 
-3. Analyzer node categorizes the query by topic 
-4. Router directs the query to the appropriate specialized agent 
-5. Agent processes the query, potentially calling external APIs 
-6. Evaluator determines if the response is complete or needs input from other agents 
-7. If more information is needed, query is routed to additional agents 
-8. Synthesizer combines information from multiple agents when necessary 
-9. Final response is returned to the API and displayed to the user 
+Your Question
+You ask something like "What's the weather in Seattle?"
+This gets sent to the Flask web server in server.py
 
-This architecture leverages LangGraph's directed graph structure to create a workflow where specialized agents can collaborate on complex queries, with state being maintained throughout the entire process. 
+Analysis Phase
+The AnalyzerAgent looks at your question and identifies what it's about (weather, sports, etc.). It tags your question with a topic
 
-1. **Query Analysis**: Determines the query's primary topic
-2. **Agent Routing**: Directs the query to the appropriate specialized agent
-3. **Response Evaluation**: Determines if additional agent input is needed
-4. **Multi-agent Collaboration**: Consults additional agents when necessary
-5. **Response Synthesis**: Combines information into a coherent answer
+Routing Phase
+The RouterAgent receives the analyzed question
+It decides which specialized agent(s) should handle your question
+For "What's the weather in Seattle?", it would choose the WeatherAgent
 
-## Prerequisites
+Information Gathering Phase
+The chosen specialized agent (e.g., WeatherAgent) processes your question
+If it has API keys (like in your .env file), it fetches real data
+Otherwise, it uses its knowledge to give the best answer it can
 
-- Node.js v16+
-- TypeScript
-- Azure OpenAI API access
-- Various API keys for agent services (see .env.example)
+Evaluation Phase
+The EvaluatorAgent checks if the answer is complete
+If not, it might go back to the router to get more information
 
+Synthesis Phase
+The SynthesizerAgent takes all the collected information
+It creates a well-formatted, complete answer
+This final answer is returned to you
 
-## Project Structure
+3. Special Communication Features
+This system uses two special protocols:
 
-```
-multi-agent-app
-├── src
-│   ├── api
-│   ├── agents
-│   ├── graph
-│   ├── services
-│   ├── interfaces
-│   ├── ui
-│   └── index.ts
-├── config
-├── .env.example
-├── package.json
-├── tsconfig.json
-└── README.md
-```
+A2A Protocol (Agent-to-Agent): Helps the agents communicate with each other effectively
+MCP Protocol (Model Context Protocol): Helps share and maintain context throughout the conversation
 
-## Installation
+4. How to Run the Application
+Make sure you have Python installed
+Set up environment variables in the .env file:
+Azure OpenAI credentials (for the AI models)
+Optional API keys for specialized data (news, stocks, etc.)
+Run the application: python -m app.main
+Access the web interface at http://localhost:3000
+Ask questions through the web interface or API
 
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd multi-agent-app
-   ```
+5. Example Flow
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+Simple Flow Example:
+You ask: "What's the weather like in Seattle today?"
+The analyzer identifies this as a weather-related question
+The router directs it to the weather agent
+The weather agent processes the question (using API data if available)
+The evaluator confirms the answer is complete
+The synthesizer formats a nice response about Seattle's weather
+You receive the answer in the web interface
 
-3. Set up environment variables:
-   - Copy `.env.example` to `.env` and fill in the required values.
-   
-4. Build the project: \`npm run build\`
+Complex Flow Example with A2A and MCP:
+You ask: "How might the rainy weather in Seattle affect the Seahawks game this weekend, and what impact could this have on related sports stocks?"
+The analyzer identifies multiple topics: weather, sports, and stocks
+The router decides to consult multiple specialized agents
 
-5. Start the server: \`npm start\`
+Using A2A protocol:
+The weather agent retrieves Seattle's forecast (rain predicted)
+The weather agent sends this context to the sports agent using A2A messaging
+The sports agent analyzes how rain affects Seahawks' performance
+The sports agent shares this analysis with the stocks agent
+The stocks agent evaluates potential market impacts on related companies
 
-## API Endpoints
+Using MCP protocol:
+All agents maintain shared awareness of the conversation context
+The MCP handler ensures each agent knows what other agents have already addressed
+This prevents redundant information and creates coherent handoffs between agents
+The evaluator reviews the collective information and determines more details are needed about specific stocks
+The router sends the query back to the stocks agent for additional information
+The synthesizer combines weather data, sports analysis, and financial insights into a comprehensive response
+You receive an integrated answer that covers all aspects of your question
+This complex example demonstrates how A2A enables direct agent-to-agent communication for collaborative problem-solving, while MCP ensures all agents maintain awareness of the evolving conversation context.
 
-- POST /api/query - Submit a query to the multi-agent system
-  - Request body: \`{ "query": "Your question here" }\`
-  - Response: \`{ "response": "Agent's answer" }\`
+## Setup
+
+Clone the repository
+
+Install dependencies:
+pip install -r requirements.txt
+
+Set up environment variables:
+
+Copy .env.example to .env and fill in the required values, including:
+AZURE_OPENAI_ENDPOINT
+AZURE_OPENAI_API_KEY
+AZURE_OPENAI_DEPLOYMENT_ID
+Optional API keys for NEWS_API_KEY, STOCKS_API_KEY, etc.
+Start the server:
+
+API Endpoints
+POST /api/query - Submit a query to the multi-agent system
+Request body: { "query": "Your question here" }
+Response: { "response": "Agent's answer" }
+Usage
+
 
 ## Usage
 
 To start the application, run:
-```
-npm start
-```
+python -m app.main
+
 
 Visit `http://localhost:3000` in your web browser to access the user interface.
 

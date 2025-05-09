@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .input-area {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        #query-input {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005a9e;
+        }
+        .response-area {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            min-height: 100px;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        .metadata {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .topic {
+            display: inline-block;
+            padding: 3px 8px;
+            background-color: #e6f3ff;
+            border-radius: 4px;
+            margin-right: 5px;
+        }
+        .agent {
+            display: inline-block;
+            padding: 3px 8px;
+            background-color: #e6ffe6;
+            border-radius: 4px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Multi-Agent Assistant</h1>
+    
+    <div class="input-area">
+        <input type="text" id="query-input" placeholder="Ask me something...">
+        <button id="submit-button">Ask</button>
+    </div>
+    
+    <div class="response-area" id="response-container">
+        <p>Your response will appear here.</p>
+    </div>
+    
+    <div class="metadata" id="metadata-container"></div>
+    
+    <script>
+        document.getElementById('submit-button').addEventListener('click', submitQuery);
+        document.getElementById('query-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitQuery();
+            }
+        });
+        
+        function submitQuery() {
+            const query = document.getElementById('query-input').value;
+            if (!query) return;
+            
+            // Display loading state
+            document.getElementById('response-container').innerHTML = '<p class="loading">Thinking...</p>';
+            document.getElementById('metadata-container').innerHTML = '';
+            
+            // Send request to API
+            fetch('http://localhost:3000/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display response
+                document.getElementById('response-container').innerHTML = '<p>' + data.response + '</p>';
+                
+                // Display metadata
+                let metadataHtml = '';
+                if (data.topic) {
+                    metadataHtml += '<p>Topic: <span class="topic">' + data.topic + '</span></p>';
+                }
+                
+                if (data.agents_consulted && data.agents_consulted.length > 0) {
+                    metadataHtml += '<p>Agents consulted: ';
+                    data.agents_consulted.forEach(agent => {
+                        metadataHtml += '<span class="agent">' + agent + '</span> ';
+                    });
+                    metadataHtml += '</p>';
+                }
+                
+                document.getElementById('metadata-container').innerHTML = metadataHtml;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('response-container').innerHTML = '<p>Error: Unable to process your query. Please try again.</p>';
+            });
+        }
+    </script>
+</body>
+</html>
