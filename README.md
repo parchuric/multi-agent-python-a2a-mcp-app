@@ -137,10 +137,11 @@ Optional API keys for NEWS_API_KEY, STOCKS_API_KEY, etc.
 Start the server:
 
 API Endpoints
+\
 POST /api/query - Submit a query to the multi-agent system
 Request body: { "query": "Your question here" }
 Response: { "response": "Agent's answer" }
-Usage
+
 
 
 ## Usage
