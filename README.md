@@ -1,22 +1,23 @@
-# **Multi-Agent Python Application with A2A and MCP**
+# Multi-Agent Python Application with A2A and MCP
 
 This project demonstrates a multi-agent system using LangChain, with support for Google's Agent-to-Agent (A2A) protocol and Model Context Protocol (MCP).
 
-## **Overview**
+## Overview
 
 This multi-agent AI system can answer different types of questions by routing them to specialized agents. Think of it as a team of experts working together where:
 
-One expert analyzes your question.\
-Another expert decides who should answer it.\
-Specialized experts (for weather, sports, news, stocks, or health) provide information.\
-Another expert evaluates if the answer is complete.\
-A final expert puts everything together in a nice response.
+- One expert analyzes your question
+- Another expert decides who should answer it
+- Specialized experts (for weather, sports, news, stocks, or health) provide information
+- Another expert evaluates if the answer is complete
+- A final expert puts everything together in a nice response
 
 The agents communicate using the A2A protocol, and share contextual information using MCP.
 
-Key Components and Flow
+## Key Components and Flow
 
-1. The Core Structure\
+### 1. The Core Structure
+
 The application is organized in these main parts:
 
       app/
