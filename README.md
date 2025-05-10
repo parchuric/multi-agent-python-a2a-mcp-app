@@ -175,7 +175,7 @@ The Agent-to-Agent (A2A) protocol is implemented in this project to enable direc
       4. Sports Agent Processing:
          ```python
          # Sports agent processes weather data
-         await sports_agent.process_received_messages(thread_id=thread_id)
+           await sports_agent.process_received_messages(thread_id=thread_id)
          
          # Shares analysis with stocks agent
          sports_analysis = "Rain typically reduces Seahawks' passing effectiveness by 15%..."
