@@ -150,8 +150,8 @@ The Agent-to-Agent (A2A) protocol is implemented in this project to enable direc
 
       2. Analysis & Routing:
          ```python
-        # Analyzer identifies topics and sends to router via A2A
-        await analyzer.send_a2a_message(
+         # Analyzer identifies topics and sends to router via A2A
+         await analyzer.send_a2a_message(
             receiver="Router",
             content="Query involves weather, sports, and stocks topics",
             message_type="topic_identification",
@@ -161,8 +161,8 @@ The Agent-to-Agent (A2A) protocol is implemented in this project to enable direc
 
       3. Weather Agent Processing:
          ```python
-        # Weather agent gets information and shares with sports agent
-        weather_data = "Rain predicted in Seattle: 80% chance of precipitation..."
+         # Weather agent gets information and shares with sports agent
+         weather_data = "Rain predicted in Seattle: 80% chance of precipitation..."
          await weather_agent.send_a2a_message(
             receiver="SportsAgent",
             content=weather_data,
@@ -174,11 +174,11 @@ The Agent-to-Agent (A2A) protocol is implemented in this project to enable direc
 
       4. Sports Agent Processing:
          ```python
-        # Sports agent processes weather data
-        await sports_agent.process_received_messages(thread_id=thread_id)
+         # Sports agent processes weather data
+         await sports_agent.process_received_messages(thread_id=thread_id)
          
-        # Shares analysis with stocks agent
-        sports_analysis = "Rain typically reduces Seahawks' passing effectiveness by 15%..."
+         # Shares analysis with stocks agent
+         sports_analysis = "Rain typically reduces Seahawks' passing effectiveness by 15%..."
          await sports_agent.send_a2a_message(
             receiver="StocksAgent",
             content=sports_analysis,
@@ -190,11 +190,11 @@ The Agent-to-Agent (A2A) protocol is implemented in this project to enable direc
 
       5. Stocks Agent Processing:
          ```python
-        # Stocks agent processes weather and sports information
-        await stocks_agent.process_received_messages(thread_id=thread_id)
+         # Stocks agent processes weather and sports information
+         await stocks_agent.process_received_messages(thread_id=thread_id)
          
-        # Generates financial analysis based on combined information
-        stocks_analysis = "Companies like Nike (NKE) and DraftKings (DKNG) may see..."
+         # Generates financial analysis based on combined information
+         stocks_analysis = "Companies like Nike (NKE) and DraftKings (DKNG) may see..."
          ```
 
       ## 5. Advantages of A2A in this System
