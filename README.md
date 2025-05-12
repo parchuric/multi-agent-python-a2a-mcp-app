@@ -109,6 +109,8 @@ flowchart TB
     class WA,SA,NA,STA,HA specialAgents
     class A2AHandler,MessageQueue,MCPServer,SharedContext protocols
     class ExternalAPIs external
+    ```
+    
 
 The architecture diagram above illustrates the flow of information through the multi-agent system:
    
