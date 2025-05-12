@@ -1,6 +1,6 @@
 # Multi-Agent Python Application with A2A, MCP and LangGraph
 
-This project demonstrates a multi-agent system using LangChain, with support for Google's Agent-to-Agent (A2A) protocol and Model Context Protocol (MCP).
+This project demonstrates a multi-agent system using LangGraph, with support for Google's Agent-to-Agent (A2A) protocol and Model Context Protocol (MCP).
 
 ## Overview
 
