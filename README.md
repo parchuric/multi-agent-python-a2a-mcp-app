@@ -1,4 +1,4 @@
-# Multi-Agent Python Application with A2A and MCP
+# Multi-Agent Python Application with A2A, MCP and LangGraph
 
 This project demonstrates a multi-agent system using LangChain, with support for Google's Agent-to-Agent (A2A) protocol and Model Context Protocol (MCP).
 
@@ -310,6 +310,167 @@ The router sends the query back to the stocks agent for additional information\
 The synthesizer combines weather data, sports analysis, and financial insights into a comprehensive response\
 You receive an integrated answer that covers all aspects of your question\
 This complex example demonstrates how A2A enables direct agent-to-agent communication for collaborative problem-solving, while MCP ensures all agents maintain awareness of the evolving conversation context.
+
+
+# LangGraph Implementation in the Multi-Agent System
+
+LangGraph serves as the orchestration framework for the multi-agent workflow in this project, providing a structured way to manage the flow of information between different specialized agents. Here's how it's implemented:
+
+## Core LangGraph Components
+
+### 1. Graph Definition and State Management
+
+The implementation is primarily in [`app/chains/langgraph_chain.py`](app/chains/langgraph_chain.py ), which defines:
+
+- A state class that tracks the conversation flow
+- Node functions for each processing step
+- Edge functions that determine the routing between nodes
+- Conditional logic for agent selection
+
+```python
+class MultiAgentLangGraph:
+    def __init__(self, llm, specialized_agents=None):
+        self.llm = llm
+        self.specialized_agents = specialized_agents or []
+        # Initialize agents and build the workflow graph
+        self._build_graph()
+```
+
+### 2. Node Functions
+
+LangGraph uses node functions to represent different processing stages:
+
+```python
+async def _analyze_query_node(self, state: AgentState) -> AgentState:
+    """Node function for analyzing the query."""
+    # Analyzer determines topic and entities
+    
+async def _route_query_node(self, state: AgentState) -> AgentState:
+    """Node function for routing the query to specialized agents."""
+    # Router selects which agents should handle the query
+    
+async def _run_specialized_agent_node(self, state: AgentState) -> AgentState:
+    """Node function for running specialized agents."""
+    # Selected agents process the query
+    
+async def _evaluate_completeness_node(self, state: AgentState) -> AgentState:
+    """Node function for evaluating response completeness."""
+    # Evaluator checks if more information is needed
+    
+async def _synthesize_responses(self, state: AgentState) -> AgentState:
+    """Node function for synthesizing the final response."""
+    # Synthesizer creates the final response
+```
+
+### 3. Graph Construction
+
+The workflow is assembled using LangGraph's builder pattern:
+
+```python
+def _build_graph(self):
+    """Build the LangGraph workflow."""
+    # Define the graph structure
+    builder = StateGraph(AgentState)
+    
+    # Add nodes
+    builder.add_node("analyze_query", self._analyze_query_node)
+    builder.add_node("route_query", self._route_query_node)
+    builder.add_node("run_specialized_agents", self._run_specialized_agent_node)
+    builder.add_node("evaluate_completeness", self._evaluate_completeness_node)
+    builder.add_node("synthesize", self._synthesize_responses)
+    
+    # Add edges (connections between nodes)
+    builder.add_edge("analyze_query", "route_query")
+    builder.add_edge("route_query", "run_specialized_agents")
+    builder.add_edge("run_specialized_agents", "evaluate_completeness")
+    
+    # Add conditional edge based on completeness
+    builder.add_conditional_edges(
+        "evaluate_completeness",
+        self._is_information_complete,
+        {
+            True: "synthesize",
+            False: "route_query"  # Loop back if more info needed
+        }
+    )
+    
+    # Set the entry and exit points
+    builder.set_entry_point("analyze_query")
+    builder.set_finish_point("synthesize")
+    
+    # Compile the workflow
+    self.workflow = builder.compile()
+```
+
+### 4. State Management
+
+The `AgentState` class (defined in [`app/models/state.py`](app/models/state.py )) maintains the conversation state throughout the workflow:
+
+```python
+class AgentState(TypedDict):
+    user_query: str  # The original user question
+    topic: Optional[str]  # Identified topic (weather, sports, etc.)
+    selected_agents: List[str]  # Which specialized agents to use
+    agent_responses: Dict[str, str]  # Responses from each agent
+    needs_more_info: bool  # Whether more information is needed
+    final_response: Optional[str]  # The synthesized response
+    conversation_history: List[Dict]  # History of agent interactions
+    metadata: Dict  # Additional metadata like thread_id
+```
+
+## Integration with A2A and MCP
+
+LangGraph serves as the orchestration layer that works with both A2A and MCP:
+
+1. **A2A Integration**:
+   - Each node function can use A2A to send messages between agents
+   - For example, the router sends queries to specialized agents via A2A
+
+2. **MCP Integration**:
+   - The graph maintains a shared context accessible across nodes
+   - Each agent can access and update this shared context
+
+## Execution Flow
+
+When a query is processed:
+
+1. The workflow starts at the entry point (`analyze_query`)
+2. Each node processes the state and passes it to the next node
+3. Conditional edges route the flow based on evaluation results
+4. The workflow completes when it reaches the finish point (`synthesize`)
+
+```python
+async def process_query(self, query: str) -> str:
+    """Process a query through the multi-agent workflow."""
+    # Initialize thread ID for this conversation
+    thread_id = str(uuid.uuid4())
+    
+    # Initialize state
+    initial_state = {
+        "user_query": query,
+        "conversation_history": [],
+        "metadata": {
+            "thread_id": thread_id
+        }
+    }
+    
+    # Run the graph
+    final_state = await self.workflow.ainvoke(initial_state)
+    
+    # Return the final response
+    return final_state["final_response"]
+```
+
+## Benefits of LangGraph in this Application
+
+1. **Structured Workflow**: Provides a clear, visual representation of the agent interaction flow
+2. **Conditional Logic**: Enables dynamic routing based on conversation state
+3. **State Persistence**: Maintains context throughout the multi-agent interaction
+4. **Parallelization**: Can run multiple agents simultaneously when needed
+5. **Looping**: Supports iterative refinement of responses when more information is needed
+
+This implementation of LangGraph creates a flexible, extensible system where specialized agents can work together to answer complex, multi-domain questions while maintaining coherent conversation flow and context.
+
 ## Setup 
 
 Clone the repository
