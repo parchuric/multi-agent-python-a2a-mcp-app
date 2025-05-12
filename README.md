@@ -20,7 +20,9 @@ This multi-agent AI system can answer different types of questions by routing th
 
 ## System Architecture
 
+<!-- Markdown image syntax version (commented out)
 ![Architecture Diagram](images/MultiAgentArchitecture.png)
+-->
 <img src="images/MultiAgentArchitecture.png" width="800" alt="Architecture Diagram">
 *Figure 1: Detailed architecture of the multi-agent system with A2A and MCP protocols*
 
