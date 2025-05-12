@@ -14,6 +14,125 @@ This multi-agent AI system can answer different types of questions by routing th
 
 The agents communicate using the A2A protocol, and share contextual information using MCP.
 
+## Overview
+
+This multi-agent AI system can answer different types of questions by routing them to specialized agents...
+
+## System Architecture
+
+```mermaid
+flowchart TB
+    %% Main User Flow
+    User([User]) --> |"Query"| WebUI["Web Interface<br>(localhost:3000)"]
+    WebUI --> |"HTTP Request"| API["API Server<br>(server.py)"]
+    API --> |"Process Query"| Main["Main Application<br>(main.py)"]
+    Main --> |"Invoke"| LG["LangGraph Orchestrator<br>(langgraph_chain.py)"]
+    LG --> |"Final Response"| Main
+    Main --> |"HTTP Response"| API
+    API --> |"Display Result"| WebUI
+    WebUI --> |"Answer"| User
+    
+    %% LLM Integration
+    AzureOpenAI["Azure OpenAI<br>(Model Host)"] <--> |"API Calls"| Main
+    
+    %% Agent Workflow
+    subgraph "Multi-Agent Workflow"
+        direction TB
+        AA["Analyzer Agent"] --> |"Topic & Entities"| RA["Router Agent"]
+        RA --> |"Route Query"| SpecAgents["Specialized Agents"]
+        
+        subgraph "Specialized Agents"
+            direction TB
+            WA["Weather<br>Agent"]
+            SA["Sports<br>Agent"]
+            NA["News<br>Agent"]
+            STA["Stocks<br>Agent"]
+            HA["Health<br>Agent"]
+        end
+        
+        SpecAgents --> |"Responses"| EA["Evaluator Agent"]
+        EA --> |"Complete?"| Decision{Complete?}
+        Decision --> |"No"| RA
+        Decision --> |"Yes"| SYA["Synthesizer Agent"]
+    end
+    
+    LG <--> AA
+    LG <--> RA
+    LG <--> SpecAgents
+    LG <--> EA
+    LG <--> SYA
+    
+    %% A2A Protocol
+    subgraph "A2A Protocol"
+        direction TB
+        A2AHandler["A2A Handler<br>(a2a_protocol.py)"]
+        MessageQueue["Message Queue"]
+    end
+    
+    WA <--> |"Direct Messages"| A2AHandler
+    SA <--> |"Direct Messages"| A2AHandler
+    NA <--> |"Direct Messages"| A2AHandler
+    STA <--> |"Direct Messages"| A2AHandler
+    HA <--> |"Direct Messages"| A2AHandler
+    
+    A2AHandler <--> MessageQueue
+    
+    %% MCP Protocol
+    subgraph "MCP Protocol"
+        direction TB
+        MCPServer["MCP Server<br>(mcp_protocol.py)"]
+        SharedContext["Shared Context"]
+    end
+    
+    WA <--> |"Context Access"| MCPServer
+    SA <--> |"Context Access"| MCPServer
+    NA <--> |"Context Access"| MCPServer
+    STA <--> |"Context Access"| MCPServer
+    HA <--> |"Context Access"| MCPServer
+    
+    MCPServer <--> SharedContext
+    
+    %% External Resources
+    ExternalAPIs["External APIs<br>(Weather, News, Stocks)"] <--> SpecAgents
+    
+    %% Styling
+    classDef userInterface fill:#d0e0ff,stroke:#333,stroke-width:2px
+    classDef coreComponents fill:#c9e6ca,stroke:#333,stroke-width:2px
+    classDef agents fill:#ffe6cc,stroke:#333,stroke-width:2px
+    classDef specialAgents fill:#ffd9b3,stroke:#333,stroke-width:2px
+    classDef protocols fill:#e6ccff,stroke:#333,stroke-width:2px
+    classDef external fill:#f9f9f9,stroke:#333,stroke-width:1px
+    
+    class User,WebUI userInterface
+    class Main,API,LG,AzureOpenAI coreComponents
+    class AA,RA,EA,SYA agents
+    class WA,SA,NA,STA,HA specialAgents
+    class A2AHandler,MessageQueue,MCPServer,SharedContext protocols
+    class ExternalAPIs external
+
+The architecture diagram above illustrates the flow of information through the multi-agent system:
+   
+   1. **User Layer**: The user interacts with the web interface to submit queries and receive responses.
+   
+   2. **Application Layer**: The API server and main application handle HTTP requests and orchestrate the overall system.
+   
+   3. **LangGraph Orchestration**: The LangGraph component manages the workflow between agents, determining which agents to invoke and when.
+   
+   4. **Agent Layer**: Multiple specialized agents process different aspects of the query:
+      - The Analyzer Agent identifies query topics and entities
+      - The Router Agent directs queries to appropriate specialized agents
+      - Domain-specific agents (Weather, Sports, News, Stocks, Health) provide expert knowledge
+      - The Evaluator Agent assesses response completeness
+      - The Synthesizer Agent combines information into cohesive responses
+   
+   5. **Communication Protocols**:
+      - **A2A Protocol**: Enables direct agent-to-agent messaging for collaboration
+      - **MCP Protocol**: Provides shared context across agents to maintain coherent understanding
+   
+   6. **External Integration**: Specialized agents connect to external APIs when needed to fetch real-time data.
+   
+   This architecture enables sophisticated multi-agent collaboration, with agents working together to provide comprehensive answers to complex, multi-domain questions.
+
 ## Key Components and Flow
 
 ### 1. The Core Structure
