@@ -507,6 +507,51 @@ async def process_query(self, query: str) -> str:
 
 This implementation of LangGraph creates a flexible, extensible system where specialized agents can work together to answer complex, multi-domain questions while maintaining coherent conversation flow and context.
 
+## Token Usage and Cost Tracking
+
+The application includes a comprehensive token tracking system that monitors API usage and calculates costs when interacting with Azure OpenAI services.
+
+### Features
+
+- **Real-time Token Counting**: Tracks prompt tokens, completion tokens, and total tokens for each API call
+- **Agent-specific Metrics**: Breaks down token usage by individual agents in the system
+- **Cost Estimation**: Calculates approximate costs based on current Azure OpenAI pricing
+- **Usage Reporting**: Provides both API endpoint and console reporting of token usage
+
+### Usage Report Example
+==== Token Usage Report ==== Total API Calls: 24 Total Prompt Tokens: 4,382 Total Completion Tokens: 1,217 Total Tokens: 5,599 Estimated Cost: $0.0254 ($0.0131 input + $0.0123 output)
+
+==== Usage by Agent ====
+
+Agent: AnalyzerAgent API Calls: 6 Prompt Tokens: 1,245 Completion Tokens: 298 Total Tokens: 1,543 Estimated Cost: $0.0068
+
+Agent: RouterAgent API Calls: 6 Prompt Tokens: 854 Completion Tokens: 187 Total Tokens: 1,041 Estimated Cost: $0.0047
+
+Agent: WeatherAgent API Calls: 4 Prompt Tokens: 728 Completion Tokens: 336 Total Tokens: 1,064 Estimated Cost: $0.0042
+
+
+### How to Access Token Usage Data
+
+1. **Web Interface**: Visit the `/usage-report` endpoint in your browser
+
+http://localhost:3000/usage-report
+
+
+2. **Console Output**: Token usage is printed to the console when the application exits
+
+3. **Log Files**: Detailed logs are saved in the `logs/token_usage.json` file
+
+### Implementation Details
+
+The token tracking middleware wraps the Azure OpenAI client to intercept and record all API calls. The implementation:
+
+- Uses the `token_counter.py` class to track all LLM interactions
+- Preserves which agent made each call for accurate attribution
+- Handles various response formats to reliably extract token counts
+- Persists usage data to disk for later analysis
+
+This feature helps monitor API usage costs and optimize prompts for better efficiency.
+
 ## Setup 
 
 Clone the repository

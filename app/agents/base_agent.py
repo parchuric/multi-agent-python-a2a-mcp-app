@@ -42,7 +42,23 @@ class BaseAgent:
     async def process(self, input_text: str) -> str:
         """Process input and return a response."""
         self.add_message_to_history("user", input_text)
-        response = await self.llm.ainvoke(self.get_messages())
+        
+        # When using LangChain's AzureChatOpenAI, you need to set the property before calling
+        if hasattr(self.llm, "request_timeout"):
+            # Make sure to return token usage in the response
+            self.llm.return_prompt_tokens = True
+            self.llm.return_completion_tokens = True
+    
+        # Convert message history to LangChain format
+        messages = self.get_messages()
+        
+        # Include agent name in kwargs for the middleware to use, but it will be removed
+        # before passing to the actual LLM
+        response = await self.llm.ainvoke(
+            messages, 
+            agent_name=self.name
+        )
+        
         response_text = response.content
         self.add_message_to_history("assistant", response_text)
         return response_text

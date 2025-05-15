@@ -30,6 +30,13 @@ from app.utils.a2a_protocol import A2AProtocolHandler
 from app.utils.mcp_protocol import MCPHandler
 from app.api.server import init_app
 
+try:
+    from app.utils.token_counter import TokenCounterMiddleware
+    USE_TOKEN_COUNTER = True
+except ImportError:
+    print("Token counter not available, proceeding without token counting")
+    USE_TOKEN_COUNTER = False
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -60,13 +67,19 @@ async def init_langgraph():
         deployment_id = os.getenv("AZURE_OPENAI_DEPLOYMENT_ID")
         logger.info(f"Using Azure OpenAI deployment ID: {deployment_id}")
 
-        llm = AzureChatOpenAI(
-            azure_deployment=azure_deployment,
-            azure_endpoint=azure_endpoint,
-            api_key=azure_api_key,
-            api_version="2023-05-15",  # Adjust if needed
-            temperature=0.2
+        azure_llm = AzureChatOpenAI(
+            azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_ID"],
+            openai_api_version="2023-05-15",
+            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+            api_key=os.environ["AZURE_OPENAI_API_KEY"],
         )
+
+        if USE_TOKEN_COUNTER:
+            # Create logs directory if it doesn't exist
+            os.makedirs("logs", exist_ok=True)
+            
+            # Wrap the LLM with token counter
+            azure_llm = TokenCounterMiddleware(azure_llm, log_file="logs/token_usage.json")
         
         logger.info("Initializing A2A and MCP handlers...")
         a2a_handler = A2AProtocolHandler()
@@ -74,21 +87,21 @@ async def init_langgraph():
         
         logger.info("Initializing specialized agents...")
         # Initialize all specialized agents
-        analyzer = AnalyzerAgent(llm, ANALYZER_SYSTEM_PROMPT, "Analyzer", a2a_handler, mcp_handler)
-        router = RouterAgent(llm, ROUTER_SYSTEM_PROMPT, "Router", a2a_handler, mcp_handler)
-        weather_agent = WeatherAgent(llm, WEATHER_SYSTEM_PROMPT, "WeatherAgent", a2a_handler, mcp_handler)
-        sports_agent = SportsAgent(llm, SPORTS_SYSTEM_PROMPT, "SportsAgent", a2a_handler, mcp_handler)
-        news_agent = NewsAgent(llm, NEWS_SYSTEM_PROMPT, "NewsAgent", a2a_handler, mcp_handler)
+        analyzer = AnalyzerAgent(azure_llm, ANALYZER_SYSTEM_PROMPT, "Analyzer", a2a_handler, mcp_handler)
+        router = RouterAgent(azure_llm, ROUTER_SYSTEM_PROMPT, "Router", a2a_handler, mcp_handler)
+        weather_agent = WeatherAgent(azure_llm, WEATHER_SYSTEM_PROMPT, "WeatherAgent", a2a_handler, mcp_handler)
+        sports_agent = SportsAgent(azure_llm, SPORTS_SYSTEM_PROMPT, "SportsAgent", a2a_handler, mcp_handler)
+        news_agent = NewsAgent(azure_llm, NEWS_SYSTEM_PROMPT, "NewsAgent", a2a_handler, mcp_handler)
         stocks_agent = StocksAgent(
             name="StocksAgent", 
-            llm=llm, 
+            llm=azure_llm, 
             a2a_handler=a2a_handler, 
             mcp_handler=mcp_handler
             # Remove the memory parameter
         )
-        health_agent = HealthAgent(llm, HEALTH_SYSTEM_PROMPT, "HealthAgent", a2a_handler, mcp_handler)
-        evaluator = EvaluatorAgent(llm, EVALUATOR_SYSTEM_PROMPT, "Evaluator", a2a_handler, mcp_handler)
-        synthesizer = SynthesizerAgent(llm, SYNTHESIZER_SYSTEM_PROMPT, "Synthesizer", a2a_handler, mcp_handler)
+        health_agent = HealthAgent(azure_llm, HEALTH_SYSTEM_PROMPT, "HealthAgent", a2a_handler, mcp_handler)
+        evaluator = EvaluatorAgent(azure_llm, EVALUATOR_SYSTEM_PROMPT, "Evaluator", a2a_handler, mcp_handler)
+        synthesizer = SynthesizerAgent(azure_llm, SYNTHESIZER_SYSTEM_PROMPT, "Synthesizer", a2a_handler, mcp_handler)
         
         # Add this after initializing your agents
         logger.info("Testing API connections...")
@@ -99,7 +112,7 @@ async def init_langgraph():
                 logger.warning("News API connection failed - check API key and limits")
 
         if stocks_agent.api_key:
-            if stocks_agent.test_api_connection():
+            if await stocks_agent.test_api_connection():
                 logger.info("Stocks API connection successful")
             else:
                 logger.warning("Stocks API connection failed - check API key and limits")
@@ -112,6 +125,10 @@ async def init_langgraph():
             a2a_handler, mcp_handler,
             recursion_limit=3  # Add this parameter
         )
+        
+        if USE_TOKEN_COUNTER:
+            # Add token counter to graph for access from API
+            graph.token_counter = azure_llm
         
         logger.info("LangGraph initialization complete!")
         return graph
@@ -219,6 +236,44 @@ async def test_stock_agent(graph):
         logger.error(f"Error testing stock agent: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
+
+def generate_token_usage_report(token_counter):
+    """Generate a comprehensive token usage report."""
+    total_usage = token_counter.get_total_usage()
+    agent_usage = token_counter.get_usage_by_agent()
+    
+    # Calculate costs (approximate)
+    input_cost_per_1k = 0.003  # Azure GPT-4 input cost per 1K tokens
+    output_cost_per_1k = 0.006  # Azure GPT-4 output cost per 1K tokens
+    
+    prompt_cost = total_usage["prompt_tokens"] * input_cost_per_1k / 1000
+    completion_cost = total_usage["completion_tokens"] * output_cost_per_1k / 1000
+    total_cost = prompt_cost + completion_cost
+    
+    # Format the report
+    report = [
+        "==== Token Usage Report ====",
+        f"Total API Calls: {total_usage['call_count']}",
+        f"Total Prompt Tokens: {total_usage['prompt_tokens']}",
+        f"Total Completion Tokens: {total_usage['completion_tokens']}",
+        f"Total Tokens: {total_usage['total_tokens']}",
+        f"Estimated Cost: ${total_cost:.4f} (${prompt_cost:.4f} input + ${completion_cost:.4f} output)",
+        "\n==== Usage by Agent ===="
+    ]
+    
+    for agent, usage in agent_usage.items():
+        agent_prompt_cost = usage["prompt_tokens"] * input_cost_per_1k / 1000
+        agent_completion_cost = usage["completion_tokens"] * output_cost_per_1k / 1000
+        agent_total_cost = agent_prompt_cost + agent_completion_cost
+        
+        report.append(f"\nAgent: {agent}")
+        report.append(f"  API Calls: {usage['call_count']}")
+        report.append(f"  Prompt Tokens: {usage['prompt_tokens']}")
+        report.append(f"  Completion Tokens: {usage['completion_tokens']}")
+        report.append(f"  Total Tokens: {usage['total_tokens']}")
+        report.append(f"  Estimated Cost: ${agent_total_cost:.4f}")
+    
+    return "\n".join(report)
 
 async def main():
     """Main entry point for the application."""

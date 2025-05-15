@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify, send_from_directory  # type: ignore
+from flask import Flask, request, jsonify, send_from_directory, render_template  # type: ignore
 from flask_cors import CORS
 import asyncio
 import os
 import logging
 from app.chains.langgraph_chain import MultiAgentLangGraph
+from app.utils.token_counter import generate_token_usage_report, TokenCounterMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -11,9 +12,11 @@ logger = logging.getLogger(__name__)
 
 # Get the directory of the static files
 static_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+# Get the template directory
+template_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
 
-# Initialize Flask app
-app = Flask(__name__, static_folder=static_folder)
+# Initialize Flask app with template folder
+app = Flask(__name__, static_folder=static_folder, template_folder=template_folder)
 CORS(app)  # Enable CORS for all routes
 
 # Global variable to hold our graph instance
@@ -56,6 +59,14 @@ def process_query():
 def health_check():
     """Simple health check endpoint."""
     return jsonify({"status": "ok", "message": "System is running"})
+
+@app.route('/usage-report')
+def usage_report():
+    """Serve the token usage report."""
+    if hasattr(graph, 'token_counter'):
+        report = generate_token_usage_report(graph.token_counter)
+        return render_template('usage_report.html', report=report)
+    return "Token counter not available", 404
 
 def init_app(initialized_graph):
     """Initialize the Flask app with the provided graph."""
