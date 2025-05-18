@@ -77,3 +77,16 @@ class A2AProtocolHandler:
         if thread_id:
             messages = [msg for msg in messages if msg.thread_id == thread_id]
         return messages
+    
+    def get_available_agents(self) -> List[str]:
+        """Get a list of all available agent names."""
+        # If you've registered agents, return their names
+        if hasattr(self, "agents") and self.agents:
+            return list(self.agents.keys())
+            
+        # Otherwise return a default list
+        return [
+            "Analyzer", "Router", "WeatherAgent", "SportsAgent", 
+            "NewsAgent", "StocksAgent", "HealthAgent", 
+            "Evaluator", "Synthesizer"
+        ]

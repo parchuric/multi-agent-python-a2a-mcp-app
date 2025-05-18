@@ -170,6 +170,37 @@ class TokenCounterMiddleware:
                 agent_name = filename.replace("_agent.py", "").replace(".py", "")
                 return agent_name.capitalize() + "Agent"
         return "unknown"
+    
+    def track_responses_api_usage(self, thread_id: str, agent_name: str, query_length: int, response_length: int):
+        """Track token usage for Responses API calls."""
+        # Estimate tokens using character count as a rough approximation
+        # (For production, you'd use a more accurate method like tiktoken)
+        estimated_input_tokens = query_length // 4  # ~4 chars per token
+        estimated_output_tokens = response_length // 4
+        
+        usage_record = {
+            "timestamp": time.time(),
+            "thread_id": thread_id,
+            "agent": agent_name,
+            "tokens": {
+                "prompt_tokens": estimated_input_tokens,
+                "completion_tokens": estimated_output_tokens,
+                "total_tokens": estimated_input_tokens + estimated_output_tokens
+            },
+            "api": "responses_api"
+        }
+        
+        self.call_history.append(usage_record)
+        self._append_to_log(usage_record)
+        
+        return usage_record
+
+    def get_call_history_for_query(self, query: str) -> List[Dict]:
+        """Get call history entries related to a specific query."""
+        # Since we don't track which history items belong to which query,
+        # we'll return recent calls (last 10) as a rough approximation
+        # In a production system, you'd want to track query IDs
+        return self.call_history[-10:] if self.call_history else []
 
 def generate_token_usage_report(token_counter):
     """Generate a comprehensive token usage report."""

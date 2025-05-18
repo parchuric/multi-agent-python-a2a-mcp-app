@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, List
+from typing import Dict, List, Optional, Any, Union
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from langchain_core.language_models import BaseChatModel
 from app.utils.a2a_protocol import A2AMessage, A2AProtocolHandler
@@ -39,29 +39,62 @@ class BaseAgent:
                 
         return messages
     
-    async def process(self, input_text: str) -> str:
+    async def process(self, input_text: str, thread_id: Optional[str] = None) -> str:
         """Process input and return a response."""
-        self.add_message_to_history("user", input_text)
+        if thread_id is None:
+            thread_id = str(uuid.uuid4())
         
-        # When using LangChain's AzureChatOpenAI, you need to set the property before calling
-        if hasattr(self.llm, "request_timeout"):
-            # Make sure to return token usage in the response
-            self.llm.return_prompt_tokens = True
-            self.llm.return_completion_tokens = True
-    
-        # Convert message history to LangChain format
-        messages = self.get_messages()
-        
-        # Include agent name in kwargs for the middleware to use, but it will be removed
-        # before passing to the actual LLM
-        response = await self.llm.ainvoke(
-            messages, 
-            agent_name=self.name
-        )
-        
-        response_text = response.content
-        self.add_message_to_history("assistant", response_text)
-        return response_text
+        # When using Responses API through MCP, we use a different approach
+        if hasattr(self.mcp_handler, 'use_responses_api') and self.mcp_handler.use_responses_api:
+            # First determine which other agents' contexts are relevant
+            relevant_agents = await self.determine_relevant_agents(input_text)
+            
+            # Query with context using Responses API
+            response_text = await self.mcp_handler.query_with_context(
+                thread_id=thread_id,
+                query=input_text,
+                relevant_agents=relevant_agents
+            )
+            
+            # Store this agent's response as context for future use
+            await self.mcp_handler.update_context(
+                thread_id=thread_id,
+                agent_name=self.name,
+                context_data=response_text
+            )
+            
+            # Track token usage for Responses API if token counter is available
+            if hasattr(self.llm, "track_responses_api_usage"):
+                self.llm.track_responses_api_usage(
+                    thread_id=thread_id,
+                    agent_name=self.name,
+                    query_length=len(input_text),
+                    response_length=len(response_text)
+                )
+            
+            return response_text
+        else:
+            # Traditional processing without Responses API
+            self.add_message_to_history("user", input_text)
+            
+            # When using LangChain's AzureChatOpenAI, you need to set the property before calling
+            if hasattr(self.llm, "request_timeout"):
+                # Make sure to return token usage in the response
+                self.llm.return_prompt_tokens = True
+                self.llm.return_completion_tokens = True
+            
+            # Convert message history to LangChain format
+            messages = self.get_messages()
+            
+            # Include agent name in kwargs for the middleware to use
+            response = await self.llm.ainvoke(
+                messages, 
+                agent_name=self.name
+            )
+            
+            response_text = response.content
+            self.add_message_to_history("assistant", response_text)
+            return response_text
     
     async def send_a2a_message(self, 
                             receiver: str, 
@@ -161,3 +194,31 @@ class BaseAgent:
     async def process_query(self, query: str) -> str:
         """Default implementation that redirects to process method."""
         return await self.process(query)
+    
+    async def determine_relevant_agents(self, query: str) -> List[str]:
+        """Determine which other agents' contexts might be relevant to this query.
+        
+        Args:
+            query: The user query
+            
+        Returns:
+            List of agent names that might have relevant context
+        """
+        # Default implementation returns all agents except self
+        # In a real implementation, you'd use NLP/embeddings to find relevant agents
+        
+        # Get all agent names from the A2A handler if available
+        all_agents = []
+        if self.a2a_handler and hasattr(self.a2a_handler, "get_available_agents"):
+            all_agents = self.a2a_handler.get_available_agents()
+        
+        # If we can't get the list from A2A handler, use a default list
+        if not all_agents:
+            all_agents = [
+                "Analyzer", "Router", "WeatherAgent", "SportsAgent", 
+                "NewsAgent", "StocksAgent", "HealthAgent", 
+                "Evaluator", "Synthesizer"
+            ]
+        
+        # Remove self from the list
+        return [agent for agent in all_agents if agent != self.name]

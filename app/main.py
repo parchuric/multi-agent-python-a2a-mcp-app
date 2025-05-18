@@ -1,4 +1,6 @@
+from app.config import USE_RESPONSES_API, ENABLE_API_COMPARISON, RESPONSES_API_PERSISTENCE_PATH
 import os
+import json
 import sys
 import asyncio
 import threading
@@ -58,7 +60,7 @@ if not all([azure_api_key, azure_endpoint, azure_deployment]):
     print("AZURE_OPENAI_DEPLOYMENT_ID=your_deployment_id_here")
     sys.exit(1)
 
-async def init_langgraph():
+async def init_langgraph(use_responses_api=USE_RESPONSES_API):
     """Initialize the LangGraph system."""
     try:
         logger.info("Initializing Azure OpenAI LLM...")
@@ -83,7 +85,15 @@ async def init_langgraph():
         
         logger.info("Initializing A2A and MCP handlers...")
         a2a_handler = A2AProtocolHandler()
-        mcp_handler = MCPHandler()
+        
+        # Update this line to use the parameter
+        mcp_handler = MCPHandler(use_responses_api=use_responses_api)
+        
+        # If using Responses API, log it
+        if use_responses_api:
+            logger.info("Using Responses API for context management")
+            # Ensure data directory exists for persistence
+            os.makedirs(os.path.dirname(RESPONSES_API_PERSISTENCE_PATH) or ".", exist_ok=True)
         
         logger.info("Initializing specialized agents...")
         # Initialize all specialized agents
@@ -131,6 +141,10 @@ async def init_langgraph():
             graph.token_counter = azure_llm
         
         logger.info("LangGraph initialization complete!")
+        
+        # Add MCP handler to graph for persistence/access
+        graph.mcp_handler = mcp_handler
+        
         return graph
         
     except Exception as e:
@@ -275,15 +289,142 @@ def generate_token_usage_report(token_counter):
     
     return "\n".join(report)
 
+# Create a function to run comparison tests
+async def compare_api_efficiency(test_queries):
+    """Compare token usage between traditional API and Responses API."""
+    logger.info("Starting API efficiency comparison...")
+    
+    # Import directly from config to avoid modifying globals
+    from app.config import USE_RESPONSES_API as config_use_responses_api
+    
+    # Ensure we have a test queries array
+    if not test_queries:
+        test_queries = [
+            "What's the weather like in Seattle today?",
+            "Tell me about the latest sports news",
+            "What are the top headlines in technology news?"
+        ]
+    
+    results = {}
+    
+    # Test with traditional API
+    logger.info("Testing with traditional Chat Completions API...")
+    try:
+        # Run with traditional API
+        results["traditional"] = await run_test_suite(test_queries, use_responses_api=False)
+        
+        # Run with Responses API
+        results["responses"] = await run_test_suite(test_queries, use_responses_api=True)
+        
+        # Calculate savings
+        trad_tokens = results["traditional"]["total_tokens"]
+        resp_tokens = results["responses"]["total_tokens"]
+        
+        if trad_tokens > 0:
+            token_reduction = (trad_tokens - resp_tokens) / trad_tokens * 100
+            cost_reduction = token_reduction  # Assuming cost is directly proportional to tokens
+        else:
+            token_reduction = 0
+            cost_reduction = 0
+            
+        results["token_reduction_percent"] = token_reduction
+        results["cost_reduction_percent"] = cost_reduction
+        
+        logger.info(f"\n==== API Efficiency Comparison ====")
+        logger.info(f"Traditional API total tokens: {trad_tokens}")
+        logger.info(f"Responses API total tokens: {resp_tokens}")
+        logger.info(f"Token reduction: {token_reduction:.2f}%")
+        logger.info(f"Estimated cost reduction: {cost_reduction:.2f}%")
+        
+        # Save results to file
+        os.makedirs("data", exist_ok=True)
+        with open("data/api_comparison_results.json", "w") as f:
+            json.dump(results, f)
+            
+        return results
+    
+    except Exception as e:
+        logger.error(f"Error during API comparison: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {"error": str(e)}
+
+async def run_test_suite(test_queries, use_responses_api=False):
+    """Run a suite of test queries and measure token usage."""
+    # Configure for this test run
+    global USE_RESPONSES_API
+    USE_RESPONSES_API = use_responses_api
+    
+    # Initialize a new graph with the configured setting
+    graph = await init_langgraph(use_responses_api=use_responses_api)
+    
+    total_tokens = 0
+    input_tokens = 0
+    output_tokens = 0
+    results = []
+    
+    # Run each test query
+    for query in test_queries:
+        try:
+            response = await graph.process_query(query)
+            results.append({"query": query, "response": response})
+            
+            # Extract token usage - handle missing method
+            if hasattr(graph, "token_counter"):
+                token_counter = graph.token_counter
+                if hasattr(token_counter, "get_call_history_for_query"):
+                    usage = token_counter.get_call_history_for_query(query)
+                    if usage:
+                        query_tokens = sum(u.get("tokens", {}).get("total_tokens", 0) for u in usage)
+                        query_input = sum(u.get("tokens", {}).get("prompt_tokens", 0) for u in usage)
+                        query_output = sum(u.get("tokens", {}).get("completion_tokens", 0) for u in usage)
+                        
+                        total_tokens += query_tokens
+                        input_tokens += query_input
+                        output_tokens += query_output
+                elif hasattr(token_counter, "call_history"):
+                    # Fallback to using all recent call history
+                    recent_calls = token_counter.call_history[-3:]  # Assume last 3 calls are for this query
+                    query_tokens = sum(u.get("tokens", {}).get("total_tokens", 0) for u in recent_calls)
+                    query_input = sum(u.get("tokens", {}).get("prompt_tokens", 0) for u in recent_calls)
+                    query_output = sum(u.get("tokens", {}).get("completion_tokens", 0) for u in recent_calls)
+                    
+                    total_tokens += query_tokens
+                    input_tokens += query_input
+                    output_tokens += query_output
+        except Exception as e:
+            logger.error(f"Error processing test query '{query}': {e}")
+    
+    return {
+        "total_tokens": total_tokens,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "api_type": "responses" if use_responses_api else "traditional",
+        "results": results
+    }
+
+# Add this to your main() function
 async def main():
     """Main entry point for the application."""
     try:
-        # Initialize LangGraph
-        graph = await init_langgraph()
+        # Initialize LangGraph with config setting
+        graph = await init_langgraph(use_responses_api=USE_RESPONSES_API)
         
         # Start API server in a separate thread
         api_thread = threading.Thread(target=start_api_server, args=(graph,), daemon=True)
         api_thread.start()
+        
+        # Optionally run comparison tests
+        if ENABLE_API_COMPARISON:
+            comparison_results = await compare_api_efficiency([
+                "What's the weather like in Seattle today?",
+                "Tell me about the latest sports news",
+                "What are the top headlines in technology news?"
+            ])
+            print("\nAPI Comparison Results:")
+            print(f"Traditional API: {comparison_results['traditional']['total_tokens']} tokens")
+            print(f"Responses API: {comparison_results['responses']['total_tokens']} tokens")
+            print(f"Token reduction: {comparison_results['token_reduction_percent']:.2f}%")
         
         # Optionally run test queries
         await test_query(graph)
@@ -294,6 +435,9 @@ async def main():
             
     except KeyboardInterrupt:
         logger.info("Shutting down...")
+        # Persist conversations if using Responses API
+        if USE_RESPONSES_API and hasattr(graph, "mcp_handler"):
+            graph.mcp_handler.persist(RESPONSES_API_PERSISTENCE_PATH)
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         sys.exit(1)

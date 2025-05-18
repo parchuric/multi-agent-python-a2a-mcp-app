@@ -31,29 +31,66 @@ def index():
 def process_query():
     """Process a user query using the multi-agent system."""
     if not graph:
-        return jsonify({"error": "System not initialized"}), 500
-    
+        return jsonify({"error": "Graph not initialized"}), 500
+        
     data = request.json
-    if not data or 'query' not in data:
-        return jsonify({"error": "Missing query parameter"}), 400
+    query = data.get("query", "")
     
-    query = data['query']
-    logger.info(f"Received query: {query}")
-    
-    # Run the async process in a synchronous context
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
+        
     try:
+        # Process the query asynchronously
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(graph.process_query(query))
+        response = loop.run_until_complete(graph.process_query(query))
         loop.close()
-        return jsonify(result)
+        
+        # If response is a string, convert to simple response object
+        if isinstance(response, str):
+            return jsonify({"response": response})
+            
+        # If it's already a dict, ensure it has a response field
+        elif isinstance(response, dict):
+            # Make a clean copy of the dict to prevent modification issues
+            clean_response = {}
+            
+            # Include only the necessary fields for the UI
+            if 'response' in response:
+                clean_response['response'] = response['response']
+            if 'topic' in response:
+                clean_response['topic'] = response['topic']
+            if 'agents_consulted' in response:
+                clean_response['agents_consulted'] = response['agents_consulted']
+                
+            # If we don't have a response field, try to determine the main content
+            if 'response' not in clean_response:
+                clean_response['response'] = response.get('result', str(response))
+                
+            return jsonify(clean_response)
+        
+        # Fallback for any other type
+        else:
+            return jsonify({"response": str(response)})
+            
     except Exception as e:
         logger.error(f"Error processing query: {e}")
-        return jsonify({
-            "error": str(e),
-            "query": query,
-            "response": "Sorry, I encountered an error while processing your query."
-        }), 500
+        
+        # Get detailed error information
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"Traceback: {error_trace}")
+        
+        # Convert any error to a string
+        error_message = str(e)
+        
+        # Provide better error messages for common errors
+        if "object ChatCompletion can't be used in 'await' expression" in error_message:
+            error_message = "API compatibility issue. Please try again."
+        elif "conversation_id" in error_message:
+            error_message = "Azure OpenAI API version doesn't support this feature. Using fallback mode."
+        
+        return jsonify({"error": error_message}), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

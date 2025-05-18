@@ -108,14 +108,38 @@
                 },
                 body: JSON.stringify({ query: query })
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if response is ok (status in the range 200-299)
+                if (!response.ok) {
+                    // Server returned an error status - parse it and throw
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.error || 'Server returned an error');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
-                // Display response
-                document.getElementById('response-container').innerHTML = '<p>' + data.response + '</p>';
+                // Check if the response contains an error message
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 
-                // Display metadata
+                // Extract the response content - handle both string and object formats
+                let responseText = "";
+                if (typeof data === 'object') {
+                    // If data is a response object
+                    responseText = data.response || JSON.stringify(data);
+                } else {
+                    // If data is already a string
+                    responseText = data;
+                }
+                
+                // Display response
+                document.getElementById('response-container').innerHTML = '<p>' + responseText + '</p>';
+                
+                // Display metadata if available
                 let metadataHtml = '';
-                if (data.topic) {
+                if (data.topic && data.topic !== 'unknown') {
                     metadataHtml += '<p>Topic: <span class="topic">' + data.topic + '</span></p>';
                 }
                 
@@ -131,7 +155,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                document.getElementById('response-container').innerHTML = '<p>Error: Unable to process your query. Please try again.</p>';
+                document.getElementById('response-container').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
             });
         }
     </script>

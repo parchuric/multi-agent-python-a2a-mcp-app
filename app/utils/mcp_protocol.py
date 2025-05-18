@@ -1,5 +1,8 @@
 from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field
+import uuid
+import logging
+from app.utils.responses_api import ResponsesApiHandler  # Add this import
 
 class MCPContext(BaseModel):
     """Model Context Protocol context structure."""
@@ -23,14 +26,25 @@ class MCPContext(BaseModel):
             "metadata": self.metadata
         }
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 class MCPHandler:
-    """Handler for Model Context Protocol."""
+    """Handler for Model Context Protocol with Responses API support."""
     
-    def __init__(self):
+    def __init__(self, use_responses_api=False):  # Updated constructor
         self.contexts: List[MCPContext] = []
+        self.thread_contexts: Dict[str, Dict[str, Any]] = {}  # thread_id -> agent_name -> context
+        self.use_responses_api = use_responses_api
+        
+        if use_responses_api:
+            self.responses_handler = ResponsesApiHandler()
+            # Try to load saved conversations
+            self.responses_handler.load_conversations()
+            logger.info("Initialized MCPHandler with Responses API support")
     
     def add_context(self, context: MCPContext):
-        """Add a context to the handler."""
+        """Add a context to the handler (legacy method)."""
         self.contexts.append(context)
     
     def get_contexts(self, 
@@ -69,3 +83,44 @@ class MCPHandler:
             result += f"{ctx.content}\n\n"
             
         return result
+    
+    async def update_context(self, thread_id: str, agent_name: str, context_data: str) -> None:
+        """Store context for an agent in a thread."""
+        if self.use_responses_api:
+            await self.responses_handler.store_context(thread_id, agent_name, context_data)
+            logger.debug(f"Stored context via Responses API for agent {agent_name} in thread {thread_id}")
+        else:
+            # Traditional context storage
+            if thread_id not in self.thread_contexts:
+                self.thread_contexts[thread_id] = {}
+            self.thread_contexts[thread_id][agent_name] = context_data
+            logger.debug(f"Stored context locally for agent {agent_name} in thread {thread_id}")
+    
+    async def get_agent_context(self, thread_id: str, agent_name: Optional[str] = None) -> Any:
+        """Get context for a thread and specific agent."""
+        if self.use_responses_api:
+            # For responses API, we return nothing here since contexts are referenced during queries
+            logger.debug(f"Using Responses API - context references handled during query")
+            return None
+        else:
+            # Traditional context retrieval
+            if thread_id not in self.thread_contexts:
+                return None
+                
+            if agent_name:
+                return self.thread_contexts[thread_id].get(agent_name)
+            else:
+                return self.thread_contexts[thread_id]
+    
+    async def query_with_context(self, thread_id: str, query: str, relevant_agents: Optional[List[str]] = None) -> str:
+        """Query with context using Responses API."""
+        if not self.use_responses_api:
+            raise NotImplementedError("This method requires Responses API to be enabled")
+            
+        return await self.responses_handler.query_with_context(thread_id, query, relevant_agents)
+    
+    def persist(self, filepath: str = "data/conversations.json") -> None:
+        """Persist context/conversation data."""
+        if self.use_responses_api:
+            self.responses_handler.persist_conversations(filepath)
+            logger.info(f"Persisted conversation data to {filepath}")
